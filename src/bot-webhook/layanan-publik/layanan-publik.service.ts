@@ -275,7 +275,7 @@ export class LayananPublikService {
                 }), 300000);
             }
 
-            const ticketPengaduan = await this.pengaduanActionService.generateTicketToken(payload.phone_number);
+            const ticketPengaduan = await this.pengaduanActionService.generateTicketToken(payload.phone_number, "usulan");
 
             let requestData: LayananPublikDTO = JSON.parse(await this.redisService.get(`request_histories_${payload.phone_number}`) || "{}");
 
@@ -334,7 +334,7 @@ export class LayananPublikService {
 
                 await this.lpservice.addJobToQueue(requestData);
 
-                await this.redisService.del(`token-pengaduan:${payload.phone_number}`)
+                await this.redisService.del(`token-usulan:${payload.phone_number}`)
 
                 return {
                     responseMessage: variables.find((item) => item.name == "respon_setelah_mengisi_semua_syarat_pengusulan").content.replace("REQUEST_TOKEN",requestData.request_token) ||`Permintaan anda sudah tersimpan anda dengan tiket ${requestData.request_token}. Silahkan tunggu proses selanjutnya. Untuk mendukung sistem layanan publik ini, silahkan berikan rating anda terhadap layanan ini dengan mengirimkan rating dengan angka 1-10.`,

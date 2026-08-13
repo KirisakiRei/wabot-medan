@@ -77,16 +77,17 @@ export class PengaduanActionService {
     /**
      * Fungsi untuk mengenerate token tiket pengaduan
      * @param phone_number - Nomor telepon pengirim pengaduan
+     * @param keyPrefix - Prefix key Redis token (default "pengaduan"; usulan memakai "usulan")
      * @returns Promise yang berisi string token tiket pengaduan
      */
 
-    async generateTicketToken(phone_number: string): Promise<string> {
-        console.info("Mulai generate token tiket pengaduan untuk nomor:", phone_number);
-        // Cek apakah token tiket pengaduan sudah ada di Redis
-        const lateTokenExists = await this.redisService.exists(`token-pengaduan:${phone_number}`);
+    async generateTicketToken(phone_number: string, keyPrefix: string = "pengaduan"): Promise<string> {
+        console.info("Mulai generate token tiket untuk nomor:", phone_number);
+        // Cek apakah token tiket sudah ada di Redis
+        const lateTokenExists = await this.redisService.exists(`token-${keyPrefix}:${phone_number}`);
         if (lateTokenExists) {
-            console.info("Token tiket pengaduan sudah ada untuk nomor:", phone_number);
-            return this.redisService.get(`token-pengaduan:${phone_number}`);
+            console.info("Token tiket sudah ada untuk nomor:", phone_number);
+            return this.redisService.get(`token-${keyPrefix}:${phone_number}`);
         }
 
         // Generate random alphanumeric token with length between 6 and 10
@@ -98,8 +99,8 @@ export class PengaduanActionService {
         }
 
         // Simpan token ke Redis untuk validasi
-        await this.redisService.set(`token-pengaduan:${phone_number}`, tokenString, 60 * 60 * 24); // Simpan selama 24 jam
-        console.info("Token tiket pengaduan disimpan di Redis");
+        await this.redisService.set(`token-${keyPrefix}:${phone_number}`, tokenString, 60 * 60 * 24); // Simpan selama 24 jam
+        console.info("Token tiket disimpan di Redis");
         return tokenString;
     }
 

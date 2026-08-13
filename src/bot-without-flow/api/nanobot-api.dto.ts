@@ -92,3 +92,61 @@ export class ProposalRequestIdParamDTO {
     @IsString()
     request_id: string;
 }
+
+export class ComplaintDraftCreateRequestDTO {
+    @IsString()
+    wa_number: string;
+}
+
+export class ComplaintAppendRequestDTO {
+    @IsString()
+    wa_number: string;
+
+    @IsOptional()
+    @IsString()
+    value?: string;
+
+    @IsOptional()
+    @IsString()
+    media_url?: string;
+
+    @IsOptional()
+    @IsString()
+    media_caption?: string;
+}
+
+export class ComplaintStatusRequestDTO {
+    @IsString()
+    ticket: string;
+
+    @IsString()
+    wa_number: string;
+}
+
+export class ComplaintDraftKeyParamDTO {
+    @IsString()
+    draft_key: string;
+}
+
+export class ConversationKeyParamDTO {
+    @IsString()
+    key: string;
+}
+
+export class ConversationStateRequestDTO {
+    @IsOptional()
+    context?: any;
+
+    @IsOptional()
+    @IsArray()
+    history?: { role: string; content: string }[];
+}
+
+export class ConversationCompactRequestDTO {
+    @IsOptional()
+    summary?: any;
+
+    @IsOptional()
+    @IsNumber()
+    message_count?: number;
+}

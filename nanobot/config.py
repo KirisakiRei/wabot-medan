@@ -47,5 +47,12 @@ class Config:
         )
         self.history_limit = int(os.getenv("NANOBOT_HISTORY_LIMIT", "20"))
 
+        # --------------------------------------------------------------------
+        # Compact memory (ringkasan percakapan untuk konteks jangka panjang)
+        # --------------------------------------------------------------------
+        self.compact_gap_minutes = float(os.getenv("NANOBOT_COMPACT_GAP_MINUTES", "60"))
+        self.compact_cooldown_hours = float(os.getenv("NANOBOT_COMPACT_COOLDOWN_HOURS", "6"))
+        self.compact_trim_keep = int(os.getenv("NANOBOT_COMPACT_TRIM_KEEP", "10"))
+
 
 config = Config()

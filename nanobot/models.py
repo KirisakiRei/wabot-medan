@@ -20,6 +20,9 @@ class NanobotTurnContext(BaseModel):
     last_response: str = ""
     request_id: Optional[str] = None
     service: Optional[NanobotService] = None
+    forms: Optional[List[dict]] = None
+    pending_form_id: Optional[str] = None
+    ticket: Optional[str] = None
 
 
 class NanobotTurnRequest(BaseModel):

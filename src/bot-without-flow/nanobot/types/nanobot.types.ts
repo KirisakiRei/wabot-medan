@@ -2,6 +2,7 @@ export type NanobotRoute =
     | "NONE"
     | "INFORMATION"
     | "PROPOSAL"
+    | "REPORT"
     | "TICKET"
     | "ASSISTANT"
     | "IRRELEVANT";
@@ -31,6 +32,9 @@ export type NanobotTurnContext = {
     last_response: string;
     request_id?: string | null;
     service?: NanobotService;
+    forms?: { id: string; form: string; type: string; order: number }[] | null;
+    pending_form_id?: string | null;
+    ticket?: string | null;
 };
 
 export type NanobotTurnRequest = {

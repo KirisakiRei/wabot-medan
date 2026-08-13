@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+﻿import { Inject, Injectable } from '@nestjs/common';
 import { LoggerService } from 'src/logger/logger.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SessionService } from '../session/session.service';
@@ -65,8 +65,8 @@ export class UsulanService {
             return finalMessage;
         }
 
-        await this.cacheManager.set(`request_forms_${payload.phone_number}`, requestForms, 300000);
-        await this.cacheManager.set(`index_proses_pengisian_memilih_layanan_publik_${payload.phone_number}`, 0, 300000);
+        await this.cacheManager.set(`request_forms_${payload.phone_number}`, requestForms, 86400000);
+        await this.cacheManager.set(`index_proses_pengisian_memilih_layanan_publik_${payload.phone_number}`, 0, 86400000);
 
         finalMessage.message = `Saya telah menemukan layanan yang sesuai untuk Anda: *${responseAI.request_name}*.\n\nSilahkan isi ${requestForms[0].form}`;
         finalMessage.message_type = "text";
@@ -78,11 +78,11 @@ export class UsulanService {
 
 
     async generateTicketToken(phone_number: string): Promise<string> {
-        // Cek apakah token tiket pengaduan sudah ada di Redis
-        const lateTokenExists = await this.redisService.exists(`token-pengaduan:${phone_number}`);
+        // Cek apakah token tiket usulan sudah ada di Redis
+        const lateTokenExists = await this.redisService.exists(`token-usulan:${phone_number}`);
         if (lateTokenExists) {
             this.loggerService.debug(`Existing ticket token found for phone number: ${phone_number}`, UsulanService.name);
-            return this.redisService.get(`token-pengaduan:${phone_number}`);
+            return this.redisService.get(`token-usulan:${phone_number}`);
         }
 
         // Generate random alphanumeric token with length between 6 and 10
@@ -94,7 +94,7 @@ export class UsulanService {
         }
 
         // Simpan token ke Redis untuk validasi
-        await this.redisService.set(`token-pengaduan:${phone_number}`, tokenString, 60 * 60 * 24); // Simpan selama 24 jam
+        await this.redisService.set(`token-usulan:${phone_number}`, tokenString, 60 * 60 * 24); // Simpan selama 24 jam
         this.loggerService.debug(`Generated ticket token: ${tokenString} for phone number: ${phone_number}`, UsulanService.name);
         return tokenString;
     }
@@ -254,13 +254,13 @@ export class UsulanService {
             };
         }
 
-        await this.cacheManager.set(`request_forms_${wa_number}`, schema.forms, 300000);
-        await this.cacheManager.set(`index_proses_pengisian_memilih_layanan_publik_${wa_number}`, 0, 300000);
+        await this.cacheManager.set(`request_forms_${wa_number}`, schema.forms, 86400000);
+        await this.cacheManager.set(`index_proses_pengisian_memilih_layanan_publik_${wa_number}`, 0, 86400000);
         await this.redisService.set(`request_histories_${wa_number}`, JSON.stringify({
             request_history: [],
             request_bank_id: request_id,
             request_sender: wa_number
-        }), 300000);
+        }), 86400000);
 
         const token = await this.generateTicketToken(wa_number);
 
@@ -347,7 +347,7 @@ export class UsulanService {
             type: currentForm.type
         });
 
-        await this.redisService.set(`request_histories_${wa_number}`, JSON.stringify(requestData), 300000);
+        await this.redisService.set(`request_histories_${wa_number}`, JSON.stringify(requestData), 86400000);
 
         if (nowIndex === requestForms.length - 1) {
             return {
@@ -358,7 +358,7 @@ export class UsulanService {
             };
         }
 
-        await this.cacheManager.set(`index_proses_pengisian_memilih_layanan_publik_${wa_number}`, nowIndex + 1, 300000);
+        await this.cacheManager.set(`index_proses_pengisian_memilih_layanan_publik_${wa_number}`, nowIndex + 1, 86400000);
 
         return {
             success: true,
@@ -511,7 +511,7 @@ export class UsulanService {
 
         await this.redisService.set(`request_histories_${payload.phone_number}`, JSON.stringify({
             request_history: []
-        }), 300000);
+        }), 86400000);
 
         const ticketPengaduan = await this.generateTicketToken(payload.phone_number);
 
@@ -563,12 +563,12 @@ export class UsulanService {
             });
         }
 
-        await this.redisService.set(`request_histories_${payload.phone_number}`, JSON.stringify(requestData), 300000);
+        await this.redisService.set(`request_histories_${payload.phone_number}`, JSON.stringify(requestData), 86400000);
 
         if (nowIndex == requestForms.length - 1) {
             await this.cacheManager.del(`index_proses_pengisian_memilih_layanan_publik_${payload.phone_number}`);
             await this.cacheManager.del(`request_forms_${payload.phone_number}`);
-            await this.redisService.del(`token-pengaduan:${payload.phone_number}`);
+            await this.redisService.del(`token-usulan:${payload.phone_number}`);
 
             await this.saveUsulanForm(requestData);
 
@@ -580,7 +580,7 @@ export class UsulanService {
             return finalMessage;
         }
         else {
-            await this.cacheManager.set(`index_proses_pengisian_memilih_layanan_publik_${payload.phone_number}`, nowIndex + 1, 300000);
+            await this.cacheManager.set(`index_proses_pengisian_memilih_layanan_publik_${payload.phone_number}`, nowIndex + 1, 86400000);
 
             finalMessage.message = `Selanjutnya, silahkan isi ${requestForms[nowIndex + 1].form}`;
             finalMessage.message_type = "text";
@@ -591,7 +591,7 @@ export class UsulanService {
     async endFillingForm(phone_number: string) {
         await this.cacheManager.del(`index_proses_pengisian_memilih_layanan_publik_${phone_number}`);
         await this.cacheManager.del(`request_forms_${phone_number}`);
-        await this.redisService.del(`token-pengaduan:${phone_number}`);
+        await this.redisService.del(`token-usulan:${phone_number}`);
         await this.redisService.del(`request_histories_${phone_number}`);
     }
 

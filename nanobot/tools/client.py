@@ -133,3 +133,75 @@ class PemkoAPIClient:
             "/api/v1/proposals/status",
             {"ticket": ticket, "wa_number": wa_number},
         )
+
+    # ========================================================================
+    # COMPLAINT
+    # ========================================================================
+    async def create_complaint_draft(self, wa_number: str) -> Optional[dict]:
+        return await self.post(
+            "/api/v1/complaints/drafts",
+            {"wa_number": wa_number},
+        )
+
+    async def append_complaint_draft(
+        self,
+        wa_number: str,
+        value: Optional[str] = None,
+        media_url: Optional[str] = None,
+        media_caption: Optional[str] = None,
+    ) -> Optional[dict]:
+        payload: dict = {"wa_number": wa_number}
+        if value:
+            payload["value"] = value
+        if media_url:
+            payload["media_url"] = media_url
+        if media_caption:
+            payload["media_caption"] = media_caption
+        return await self.post(
+            f"/api/v1/complaints/drafts/{wa_number}/append",
+            payload,
+        )
+
+    async def submit_complaint_draft(self, wa_number: str) -> Optional[dict]:
+        return await self.post(f"/api/v1/complaints/drafts/{wa_number}/submit", {})
+
+    async def cancel_complaint_draft(self, wa_number: str) -> Optional[dict]:
+        return await self.post(f"/api/v1/complaints/drafts/{wa_number}/cancel", {})
+
+    async def check_complaint_status(self, ticket: str, wa_number: str) -> Optional[dict]:
+        return await self.post(
+            "/api/v1/complaints/status",
+            {"ticket": ticket, "wa_number": wa_number},
+        )
+
+    # ========================================================================
+    # CONVERSATION STATE
+    # ========================================================================
+    async def get_conversation(self, session_key: str) -> Optional[dict]:
+        return await self.get(f"/api/v1/conversations/{session_key}")
+
+    async def set_conversation(
+        self,
+        session_key: str,
+        context: dict,
+        history: list,
+    ) -> None:
+        await self.put(
+            f"/api/v1/conversations/{session_key}",
+            {"context": context, "history": history},
+        )
+
+    async def compact_conversation(self, session_key: str, summary: dict, message_count: int) -> None:
+        await self.post(
+            f"/api/v1/conversations/{session_key}/compact",
+            {"summary": summary, "message_count": message_count},
+        )
+
+    async def put(self, path: str, payload: dict) -> Optional[dict]:
+        try:
+            response = await self.client.put(path, json=payload)
+            response.raise_for_status()
+            return response.json()
+        except Exception as error:
+            logger.error("Error PUT %s: %s", path, error)
+            return None

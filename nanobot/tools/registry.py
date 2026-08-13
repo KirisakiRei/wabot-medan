@@ -1,6 +1,6 @@
 from typing import Dict
 
-from tools import information, proposals, status
+from tools import complaints, information, proposals, status
 from tools.types import ToolHandler, ToolResult
 
 
@@ -68,6 +68,42 @@ TOOL_REGISTRY: Dict[str, dict] = {
             "Argument: {\"ticket\": \"kode tiket\"}."
         ),
         "execute": status.get_submission_status,
+    },
+    "start_complaint": {
+        "description": (
+            "Mulai pengaduan masyarakat dan tampilkan format pengaduan. "
+            "Tanpa argument. Panggil saat user ingin melapor/mengadukan masalah publik."
+        ),
+        "execute": complaints.start_complaint,
+    },
+    "append_complaint": {
+        "description": (
+            "Simpan tambahan deskripsi atau bukti file pengaduan yang sedang berjalan. "
+            "Argument: {\"text\": \"isi pengaduan\"} atau {\"media_url\": \"url file\"}. "
+            "Jangan panggil tanpa pengaduan aktif."
+        ),
+        "execute": complaints.append_complaint,
+    },
+    "submit_complaint": {
+        "description": (
+            "Kirim pengaduan setelah user memberikan konfirmasi eksplisit. "
+            "Tanpa argument. Backend yang membuat tiket."
+        ),
+        "execute": complaints.submit_complaint,
+    },
+    "cancel_complaint": {
+        "description": (
+            "Batalkan pengaduan/draft yang sedang berjalan. "
+            "Tanpa argument. Panggil saat user membatalkan."
+        ),
+        "execute": complaints.cancel_complaint,
+    },
+    "check_complaint_status": {
+        "description": (
+            "Cek status tiket pengaduan yang sudah dikirim. "
+            "Argument: {\"ticket\": \"kode tiket\"}."
+        ),
+        "execute": complaints.check_complaint_status,
     },
 }
 

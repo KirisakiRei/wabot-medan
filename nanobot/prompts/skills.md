@@ -1,23 +1,31 @@
-Kemampuan (skills) yang Anda kuasai:
+# SKILLS — Peta Skill Pemko
 
-1. Pencarian informasi layanan — tool "search_information".
-   Dipakai untuk pertanyaan fakta/syarat/prosedur/lokasi/biaya/info OPD/pejabat.
-   Argument: {"query": "pertanyaan lengkap"}.
+File ini adalah manifest untuk manusia dan ringkasan muatan skill runtime.
+Aturan operasional lengkap berada di `skills/<nama-skill>/SKILL.md` dan `ROUTING.md`,
+dimuat otomatis sesuai route aktif.
 
-2. Pengajuan layanan publik (usulan) — rangkaian tool:
-   - "find_proposal_service" untuk mencari layanan yang cocok dengan permintaan warga.
-   - "get_proposal_schema" untuk mengambil daftar isian form layanan.
-   - "create_proposal_draft" untuk memulai pengajuan dan menampilkan form pertama.
-   - "update_proposal_field" untuk menyimpan jawaban warga atas isian form.
-   - "validate_proposal" lalu "submit_proposal" setelah semua form terisi dan warga konfirmasi.
-   - "cancel_proposal" bila warga membatalkan pengajuan.
+## Daftar Skill
 
-3. Pengecekan status tiket — tool "get_submission_status".
-   Dipakai saat warga menyebut kode tiket atau menanyakan status pengajuan.
-   Argument: {"ticket": "kode tiket"}.
+| Skill | Route aktif | Isi |
+|---|---|---|
+| conversation-routing | selalu | Aturan routing & prioritas — lihat `ROUTING.md` |
+| information-service | INFORMATION | Pencarian info resmi, grounding, NOT_FOUND |
+| proposal-service | PROPOSAL | Alur usulan: schema, draft, media, validasi, submit |
+| report-service | REPORT | Alur pengaduan: deskripsi, bukti, lokasi, submit, tiket |
 
-Panduan pemilihan skill:
-- Pertanyaan informasi → skill 1.
-- Niat mengajukan/mengurus layanan → skill 2.
-- Niat mengecek pengajuan/tiket → skill 3.
+## Tool yang Dikuasai
+
+1. **Informasi** — `search_information`: pertanyaan fakta/syarat/prosedur/lokasi/biaya.
+2. **Usulan** — `find_proposal_service`, `get_proposal_schema`, `create_proposal_draft`,
+   `update_proposal_field`, `validate_proposal`, `submit_proposal`, `cancel_proposal`.
+3. **Pengaduan** — `start_complaint`, `append_complaint`, `submit_complaint`,
+   `cancel_complaint`, `check_complaint_status`.
+4. **Status** — `get_submission_status` (usulan), `check_complaint_status` (pengaduan).
+
+## Panduan Pemilihan Skill
+
+- Pertanyaan informasi → information-service + `search_information`.
+- Niat mengajukan layanan → proposal-service + rangkaian tool usulan.
+- Niat melapor/mengadukan masalah → report-service + rangkaian tool pengaduan.
+- Cek tiket/status → tool status yang sesuai.
 - Sapaan/terima kasih/klarifikasi → jawab langsung, jangan panggil tool.

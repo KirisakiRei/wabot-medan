@@ -22,6 +22,18 @@ export class ActiveRequest implements OnModuleInit, OnModuleDestroy {
         await this.client.set(key, value, 'EX', ttlSeconds);
     }
 
+    async incr(key: string, ttlSeconds = 60): Promise<number> {
+        const count = await this.client.incr(key);
+
+        // Set expiry hanya pada kenaikan pertama (count === 1) agar window tetap satu periode.
+        // ponytail: pakai Lua script bila perlu presisi ketat untuk multi-instance.
+        if (count === 1) {
+            await this.client.expire(key, ttlSeconds);
+        }
+
+        return count;
+    }
+
     async exists(key: string) {
         const exists = await this.client.exists(key);
         return exists === 1;

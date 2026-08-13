@@ -188,6 +188,19 @@ model ChatLog {
   @@map("chat_logs")
 }
 
+model ConversationSummaries {
+  id               String   @id @default(uuid()) @db.Char(36)
+  session_key      String   @unique @db.VarChar(255)
+  summary          Json     @db.Json
+  message_count    Int      @default(0)
+  last_activity_at DateTime @default(now()) @db.Timestamp(0)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([session_key], map: "conversation_summaries_session_key_index")
+  @@map("conversation_summaries")
+}
+
 model AnsweredChat {
   id               String    @id @default(uuid()) @db.Char(36)
   year             Int       @db.Year

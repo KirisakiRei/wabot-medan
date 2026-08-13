@@ -77,6 +77,7 @@ session-*.md
 !README.md
 !**/README.md
 !nanobot/prompts/*.md
+!nanobot/prompts/skills/**/SKILL.md
 *.prd
 *.prd.*
 prd/

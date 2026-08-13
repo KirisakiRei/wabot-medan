@@ -21,13 +21,15 @@ import { NanobotModule } from './nanobot/nanobot.module';
 import { IntegrationApiController } from './api/integration-api.controller';
 import { InformationApiController } from './api/information-api.controller';
 import { ProposalApiController } from './api/proposal-api.controller';
+import { ComplaintsApiController } from './api/complaints-api.controller';
+import { ConversationsApiController } from './api/conversations-api.controller';
 import { NanobotAuthGuard } from './api/nanobot-auth.guard';
 import { NanobotApiService } from './api/nanobot-api.service';
 import { ChannelService } from 'src/channel/channel.service';
 import { TelegramModule } from 'src/telegram/telegram.module';
 
 @Module({
-  controllers: [BotWithoutFlowController, IntegrationApiController, InformationApiController, ProposalApiController],
+  controllers: [BotWithoutFlowController, IntegrationApiController, InformationApiController, ProposalApiController, ComplaintsApiController, ConversationsApiController],
   imports: [PengaduanModule, SistemInformasiModule, UsulanModule, CacheModule.register(), WhatsappModule, SessionModule, AiModule, QueueModule, NanobotModule, TelegramModule],
   providers: [BotWithoutFlowService, SistemInformasiService, PengaduanService, UsulanService, WhatsappService, Redis, ProcessChatProcessor, GenerateRagProcessor, GenerateBanksProcessor, NanobotAuthGuard, NanobotApiService, ChannelService],
   exports: [BotWithoutFlowService, ProcessChatProcessor, GenerateRagProcessor, GenerateBanksProcessor]
