@@ -136,6 +136,67 @@ docker-compose -f docker-compose.prod.yml up -d --build
 ```
 > **Catatan:** `docker-compose.yml` utama akan menjalankan kontainer aplikasi (`wa-bot-app`), MySQL, dan Redis secara bersamaan di dalam *network* bridge khusus.
 
+### Opsi C: VPS dengan PM2
+
+PM2 menjalankan dua process terpisah:
+
+- `wabot-backend` → backend NestJS hasil build (`bun dist/main.js`)
+- `wabot-nanobot` → engine Python Nanobot (`uvicorn nanobot.main:app`)
+
+Persiapan di VPS:
+
+```bash
+# install runtime
+npm install -g bun pm2
+
+# install dependency backend
+bun install --frozen-lockfile
+
+# generate Prisma client
+bunx prisma generate
+bunx prisma generate --schema=prisma/zona-parkir/schema.prisma
+
+# build backend
+bun run build
+
+# install dependency Nanobot
+python3 -m pip install -r nanobot/requirements.txt
+```
+
+Pastikan file env sudah ada:
+
+```txt
+.env
+nanobot/.env
+```
+
+Jalankan dengan PM2:
+
+```bash
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+```
+
+Cek status dan log:
+
+```bash
+pm2 status
+pm2 logs wabot-backend
+pm2 logs wabot-nanobot
+```
+
+Restart setelah update kode/env:
+
+```bash
+bun install --frozen-lockfile
+bunx prisma generate
+bunx prisma generate --schema=prisma/zona-parkir/schema.prisma
+bun run build
+python3 -m pip install -r nanobot/requirements.txt
+pm2 restart ecosystem.config.js --update-env
+```
+
 ---
 
 ## Struktur Proyek Utama
