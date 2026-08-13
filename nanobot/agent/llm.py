@@ -75,6 +75,7 @@ class LLMClient:
             "messages": messages,
             "temperature": temperature if temperature is not None else self.temperature,
             "max_tokens": max_tokens if max_tokens is not None else self.max_tokens,
+            "stream": False,
         }
 
         try:
@@ -84,6 +85,10 @@ class LLMClient:
             if response.status_code >= 400:
                 logger.error("LLM HTTP %s: %s", response.status_code, response.text[:500])
             response.raise_for_status()
+
+            raw_text = response.text
+            if raw_text.lstrip().startswith("data:"):
+                return self._parse_sse_response(raw_text)
 
             data = response.json()
             content = data["choices"][0]["message"]["content"]
@@ -112,6 +117,35 @@ class LLMClient:
                     parts.append(str(part))
             return "".join(parts)
         return str(content)
+
+    @staticmethod
+    def _parse_sse_response(text: str) -> Optional[str]:
+        """Fallback untuk router yang tetap mengembalikan SSE walau stream=false."""
+
+        parts = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line.startswith("data:"):
+                continue
+
+            payload = line.removeprefix("data:").strip()
+            if not payload or payload == "[DONE]":
+                continue
+
+            try:
+                data = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+
+            for choice in data.get("choices", []):
+                delta = choice.get("delta") or {}
+                if "content" in delta:
+                    parts.append(delta.get("content") or "")
+                message = choice.get("message") or {}
+                if "content" in message:
+                    parts.append(message.get("content") or "")
+
+        return "".join(parts) if parts else None
 
     async def chat_json(
         self,

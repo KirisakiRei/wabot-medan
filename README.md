@@ -242,6 +242,22 @@ pm2 logs wabot-backend-dev
 pm2 logs wabot-nanobot-dev
 ```
 
+Test chat Nanobot dari terminal tanpa curl manual:
+
+```bash
+python3 scripts/nanobot_chat.py --url http://127.0.0.1:8766
+```
+
+Perintah di dalam chat terminal:
+
+```txt
+/help                         bantuan
+/reset                        reset context lokal
+/user <id>                    ganti user/session
+/media <url> [mime] [name]    simulasi upload file
+/exit                         keluar
+```
+
 Restart develop setelah update:
 
 ```bash
