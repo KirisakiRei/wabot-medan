@@ -28,6 +28,7 @@ module.exports = {
       max_memory_restart: "512M",
       env: {
         PYTHONUNBUFFERED: "1",
+        PYTHONPATH: `${__dirname}/nanobot`,
         NANOBOT_PORT: process.env.DEV_NANOBOT_PORT || "8766",
         NANOBOT_BACKEND_URL: process.env.DEV_NANOBOT_BACKEND_URL || "http://127.0.0.1:8011",
       },

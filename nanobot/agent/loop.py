@@ -9,7 +9,8 @@ from models import (
     NanobotTurnRequest,
     NanobotTurnResponse,
 )
-from tools.registry import TOOL_REGISTRY, ToolResult, tool_descriptions
+from tools.registry import TOOL_REGISTRY, tool_descriptions
+from tools.types import ToolResult
 
 logger = logging.getLogger("nanobot.agent")
 

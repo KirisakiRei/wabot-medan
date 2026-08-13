@@ -27,6 +27,7 @@ module.exports = {
       max_memory_restart: "512M",
       env: {
         PYTHONUNBUFFERED: "1",
+        PYTHONPATH: `${__dirname}/nanobot`,
       },
     },
   ],

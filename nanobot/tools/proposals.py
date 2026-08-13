@@ -1,4 +1,4 @@
-from tools.registry import ToolResult
+from tools.types import ToolResult
 
 
 async def find_proposal_service(client, args: dict, state: dict) -> ToolResult:

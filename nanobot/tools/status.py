@@ -1,4 +1,4 @@
-from tools.registry import ToolResult
+from tools.types import ToolResult
 
 
 async def get_submission_status(client, args: dict, state: dict) -> ToolResult:

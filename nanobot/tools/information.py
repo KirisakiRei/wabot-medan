@@ -1,4 +1,4 @@
-from tools.registry import ToolResult
+from tools.types import ToolResult
 
 
 async def search_information(client, args: dict, state: dict) -> ToolResult:
