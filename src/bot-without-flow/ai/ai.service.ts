@@ -160,12 +160,16 @@ export class AiService {
 
         const baseURL = variables.find((item) => item.name === "RAG_BASE_URL")?.content || "";
 
+        const searchPath = variables.find((item) => item.name === "RAG_SEARCH_PATH")?.content || process.env.RAG_SEARCH_PATH || "/api/search";
+
         const api = axios.create({
             baseURL: baseURL || process.env.RAG_URL || "http://172.22.0.20:5000",
             timeout: 600000
         });
 
-        return api.post<RAGResponse>("/api/search", {
+        this.logger.debug(`RAG Search URL: ${api.defaults.baseURL}${searchPath}`, `${AiService.name}/${this.matchQuestionRAG.name}`);
+
+        return api.post<RAGResponse>(searchPath, {
             question,
             wa_number,
             category
@@ -203,12 +207,16 @@ export class AiService {
     } | null> {
         const baseURL = variables.find((item) => item.name === "RAG_BASE_URL")?.content || "";
 
+        const searchPath = variables.find((item) => item.name === "RAG_REQUEST_SEARCH_PATH")?.content || process.env.RAG_REQUEST_SEARCH_PATH || "/api/search-usulan";
+
         const api = axios.create({
             baseURL: baseURL || process.env.RAG_URL || "http://172.22.0.20:5000",
             timeout: 600000
         });
 
-        return api.post<RAGRequestResponse>("/api/search-usulan", {
+        this.logger.debug(`RAG Request Search URL: ${api.defaults.baseURL}${searchPath}`, `${AiService.name}/${this.matchRequestRAG.name}`);
+
+        return api.post<RAGRequestResponse>(searchPath, {
             question: request,
             wa_number,
         }).then((response) => {

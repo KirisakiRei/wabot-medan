@@ -188,25 +188,30 @@ class AgentLoop:
     # BUILDING BLOCKS
     # ========================================================================
     def _build_system_prompt(self, state: dict) -> str:
-        system = self._read_prompt("SYSTEM.md")
+        soul = self._read_prompt("soul.md")
+        memory = self._read_prompt("memory.md")
+        skills = self._read_prompt("skills.md")
         routing = self._read_prompt("ROUTING.md")
         safety = self._read_prompt("SAFETY.md")
 
-        active_route = state.get("route", "NONE")
-        service = state.get("service")
-        pending_form_id = state.get("pending_form_id")
-
-        context_block = (
-            "--- KONTEKS PERCAKAPAN AKTIF ---\n"
-            f"Route aktif: {active_route}\n"
-            f"Langkah form: {state.get('step', 0)}\n"
-            f"Layanan: {service.get('request_name') if service else 'tidak ada'}\n"
-            f"Menunggu isian form: {'ya' if pending_form_id else 'tidak'}\n"
-        )
+        memory_block = self._build_memory_block(state)
 
         tools_block = "--- DAFTAR TOOL TERSEDIA ---\n" + tool_descriptions()
 
-        return f"{system}\n\n{routing}\n\n{safety}\n\n{context_block}\n\n{tools_block}"
+        return (
+            f"{soul}\n\n{memory}\n\n{skills}\n\n{routing}\n\n{safety}\n\n"
+            f"{memory_block}\n\n{tools_block}"
+        )
+
+    def _build_memory_block(self, state: dict) -> str:
+        service = state.get("service")
+        return (
+            "--- INGATAN AKTIF ---\n"
+            f"Route aktif: {state.get('route', 'NONE')}\n"
+            f"Langkah form: {state.get('step', 0)}\n"
+            f"Layanan: {service.get('request_name') if service else 'tidak ada'}\n"
+            f"Menunggu isian form: {'ya' if state.get('pending_form_id') else 'tidak'}\n"
+        )
 
     def _read_prompt(self, name: str) -> str:
         try:

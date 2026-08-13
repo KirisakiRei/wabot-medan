@@ -62,6 +62,10 @@ FREQUENCY_PENALTY=0.0
 PRESENCE_PENALTY=0.0
 PROMPT="Anda adalah asisten yang hanya menjawab berdasarkan informasi yang diberikan.\n\nINFORMASI:\n${response}\n\nPERTANYAAN:\n${question}\n\nJAWABAN:"
 RAG_URL="http://<IP_RAG_SERVER>:<PORT>"
+# Default lama: /api/search dan /api/search-usulan.
+# Jika service RAG Anda expose /search, ubah RAG_SEARCH_PATH menjadi /search.
+RAG_SEARCH_PATH="/api/search"
+RAG_REQUEST_SEARCH_PATH="/api/search-usulan"
 
 # Path Penyimpanan
 FILE_FOLDER='/path/to/your/storage/folder'

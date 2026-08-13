@@ -86,14 +86,20 @@ export class SistemInformasiService {
         });
 
         if (!matchQuestion || !matchQuestion.answer_id) {
+            const notFoundMessage = "Mohon maaf saya belum bisa menjawab pertanyaanmu. Bisa kamu ulangi lagi ?";
+            const answerDoc = (matchQuestion?.answer_doc || "").trim();
+            // RAG lightrag dapat mengembalikan jawaban langsung di answer_doc
+            // tanpa answer_id (dijawab dari sumber text). Anggap sebagai jawaban.
+            const hasAnswer = answerDoc.length > 0 && answerDoc !== notFoundMessage;
+
             return {
-                found: false,
+                found: hasAnswer,
                 type: "text",
-                text: matchQuestion?.answer_doc ?? "Mohon maaf saya belum bisa menjawab pertanyaanmu. Bisa kamu ulangi lagi ?",
+                text: hasAnswer ? answerDoc : notFoundMessage,
                 file_url: null,
                 latitude: null,
                 longitude: null,
-                not_found_session: "sistem-informasi"
+                not_found_session: hasAnswer ? null : "sistem-informasi"
             };
         }
 
