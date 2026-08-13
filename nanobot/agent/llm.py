@@ -12,7 +12,8 @@ def parse_json_response(text: str) -> Optional[Dict]:
     """Parse output LLM menjadi dict dengan normalisasi toleran.
 
     Meniru pola fallback parse JSON pada AiService backend: strip code fence,
-    normalisasi kutip tunggal, dan pembetulan nilai boolean Python.
+    ekstraksi objek JSON seimbang (menoleransi teks tambahan), normalisasi
+    kutip tunggal, dan pembetulan nilai boolean Python.
     """
 
     if not text:
@@ -24,22 +25,88 @@ def parse_json_response(text: str) -> Optional[Dict]:
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
     cleaned = re.sub(r"\s*```$", "", cleaned)
 
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        pass
+    def _loads(candidate: str) -> Optional[Dict]:
+        try:
+            parsed = json.loads(candidate)
+            return parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            return None
 
+    # 1. Parsing langsung
+    parsed = _loads(cleaned)
+    if parsed is not None:
+        return parsed
+
+    # 2. Ekstraksi objek JSON pertama yang braketnya seimbang (toleran
+    #    terhadap teks trailing dari model)
+    extracted = _extract_balanced_json(cleaned)
+    if extracted:
+        parsed = _loads(extracted)
+        if parsed is not None:
+            return parsed
+
+    # 3. Beberapa model menulis newline literal di dalam nilai string (tidak
+    #    valid JSON). Ratakan newline/tab → spasi lalu coba lagi.
+    for candidate in (cleaned, extracted):
+        if not candidate:
+            continue
+        collapsed = " ".join(candidate.split())
+        parsed = _loads(collapsed)
+        if parsed is not None:
+            return parsed
+
+    # 4. Normalisasi kutip tunggal + boolean Python (fallback terakhir)
     fixed = cleaned
     fixed = fixed.replace("'", '"')
     fixed = re.sub(r"\bTrue\b", "true", fixed)
     fixed = re.sub(r"\bFalse\b", "false", fixed)
     fixed = re.sub(r"\bNone\b", "null", fixed)
 
-    try:
-        return json.loads(fixed)
-    except json.JSONDecodeError:
-        logger.warning("Gagal parse JSON dari LLM: %s", cleaned[:500])
+    parsed = _loads(fixed)
+    if parsed is not None:
+        return parsed
+
+    logger.warning("Gagal parse JSON dari LLM: %s", cleaned[:500])
+    return None
+
+
+def _extract_balanced_json(text: str) -> Optional[str]:
+    """Ambil substring dari `{` pertama hingga `}` yang menutupnya."""
+
+    start = text.find("{")
+    if start == -1:
         return None
+
+    depth = 0
+    in_string = False
+    escape = False
+
+    for index in range(start, len(text)):
+        char = text[index]
+
+        if escape:
+            escape = False
+            continue
+
+        if char == "\\" and in_string:
+            escape = True
+            continue
+
+        if char == '"':
+            in_string = not in_string
+            continue
+
+        if in_string:
+            continue
+
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1]
+
+    return None
 
 
 class LLMClient:

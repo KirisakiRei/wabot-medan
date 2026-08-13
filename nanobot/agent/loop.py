@@ -432,7 +432,7 @@ class AgentLoop:
         return await self.llm_client.chat_json(
             messages,
             temperature=0.1,
-            max_tokens=500,
+            max_tokens=self.config.llm_max_tokens,
         )
 
     # ========================================================================
