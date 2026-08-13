@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  app:
+    # Untuk development, kita langsung pakai image Node.js bawaan tanpa perlu Build Dockerfile
+    image: oven/bun:1-alpine
+    container_name: wa-bot-app-dev
+    working_dir: /app
+    volumes:
+      # Mount folder project lokal (Windows/Mac) ke dalam /app di container
+      # Ini membuat fitur "Hot-Reloading" (nest start --watch) berfungsi saat Anda mengedit code
+      - .:/app
+      # Anonymous volume agar folder node_modules di dalam container tidak tertimpa 
+      # oleh folder node_modules dari OS host lokal Anda (mencegah error system binary)
+      - /app/node_modules
+    ports:
+      - "8000:8000"
+    # Menjalankan instalasi, generate prisma, dan menyalakan server dengan mode watch (development)
+    command: >
+      sh -c "bun install && 
+             bunx prisma generate && 
+             bunx prisma generate --schema=prisma/zona-parkir/schema.prisma && 
+             bun run start:dev"
+    environment:
+      - DATABASE_URL=mysql://root:@mysql:3306/chatbot_pelayanan
+      - DATABASE_URL_ZONA_PARKIR=mysql://root:@mysql:3306/zona_parkir
+      - REDIS_HOST=redis
+      - PORT=8000
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - wa-bot-dev-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: wa-bot-mysql-dev
+    restart: unless-stopped
+    # Port ini dibuka agar Anda bisa menggunakan aplikasi seperti DBeaver/HeidiSQL 
+    # untuk melihat isi database selama development
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - mysql-dev-data:/var/lib/mysql
+      - ./docker-init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wa-bot-dev-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: wa-bot-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-dev-data:/data
+    networks:
+      - wa-bot-dev-network
+
+networks:
+  wa-bot-dev-network:
+    driver: bridge
+
+volumes:
+  # Menggunakan volume yang berbeda dengan production agar data dev dan prod tidak bentrok
+  mysql-dev-data:
+  redis-dev-data:

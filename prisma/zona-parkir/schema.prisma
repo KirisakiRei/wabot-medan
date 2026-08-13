@@ -1,0 +1,283 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../generated/zona-parkir"
+}
+
+datasource zonaParkir {
+  provider = "mysql"
+  url      = env("DATABASE_URL_ZONA_PARKIR")
+}
+
+model activity_log {
+  id           String    @id @zonaParkir.Char(36) @default(uuid())
+  log_name     String?   @zonaParkir.VarChar(255)
+  description  String    @zonaParkir.Text
+  subject_type String?   @zonaParkir.VarChar(255)
+  event        String?   @zonaParkir.VarChar(255)
+  subject_id   String?   @zonaParkir.Char(36)
+  causer_type  String?   @zonaParkir.VarChar(255)
+  causer_id    String?   @zonaParkir.Char(36)
+  properties   String?   @zonaParkir.LongText
+  batch_uuid   String?   @zonaParkir.Char(36)
+  created_at   DateTime? @zonaParkir.Timestamp(0)
+  updated_at   DateTime? @zonaParkir.Timestamp(0)
+
+  @@index([log_name], map: "activity_log_log_name_index")
+  @@index([causer_type, causer_id], map: "causer")
+  @@index([subject_type, subject_id], map: "subject")
+}
+
+model cache {
+  key        String @id @zonaParkir.VarChar(255)
+  value      String @zonaParkir.MediumText
+  expiration Int
+}
+
+model cache_locks {
+  key        String @id @zonaParkir.VarChar(255)
+  owner      String @zonaParkir.VarChar(255)
+  expiration Int
+}
+
+model complaint_templates {
+  id             String    @id @zonaParkir.Char(36)
+  content        String?   @zonaParkir.Text
+  keyword_submit String?   @zonaParkir.VarChar(255)
+  created_at     DateTime? @zonaParkir.Timestamp(0)
+  updated_at     DateTime? @zonaParkir.Timestamp(0)
+  deleted_at     DateTime? @zonaParkir.Timestamp(0)
+
+  @@index([deleted_at], map: "complaint_templates_deleted_at_index")
+}
+
+model complaints {
+  id              String            @id @zonaParkir.Char(36) @default(uuid())
+  division_id     String?           @zonaParkir.Char(36)
+  code            String            @zonaParkir.VarChar(255)
+  submit_response Json?           
+  status          complaints_status @default(waiting)
+  sender          String?           @zonaParkir.VarChar(255)
+  sender_name     String?           @zonaParkir.VarChar(255)
+  created_at      DateTime?         @zonaParkir.Timestamp(0) @default(now())
+  updated_at      DateTime?         @zonaParkir.Timestamp(0)
+  deleted_at      DateTime?         @zonaParkir.Timestamp(0)
+
+  @@index([code], map: "complaints_code_index")
+  @@index([deleted_at], map: "complaints_deleted_at_index")
+  @@index([division_id], map: "complaints_division_id_index")
+  @@index([status], map: "complaints_status_index")
+}
+
+model divisions {
+  id                       String    @id @zonaParkir.Char(36) @default(uuid())
+  name                     String    @zonaParkir.VarChar(255)
+  description              String?   @zonaParkir.Text
+  nama_penanggung_jawab    String?   @zonaParkir.VarChar(255)
+  kontak_penanggung_jawab  String?   @zonaParkir.VarChar(255)
+  jabatan_penanggung_jawab String?   @zonaParkir.VarChar(255)
+  pangkat_penanggung_jawab String?   @zonaParkir.VarChar(255)
+  nip_penanggung_jawab     String?   @zonaParkir.VarChar(255)
+  created_at               DateTime? @zonaParkir.Timestamp(0)
+  updated_at               DateTime? @zonaParkir.Timestamp(0)
+  deleted_at               DateTime? @zonaParkir.Timestamp(0)
+}
+
+model failed_jobs {
+  id         BigInt   @id @default(autoincrement()) @zonaParkir.UnsignedBigInt
+  uuid       String   @unique(map: "failed_jobs_uuid_unique") @zonaParkir.VarChar(255)
+  connection String   @zonaParkir.Text
+  queue      String   @zonaParkir.Text
+  payload    String   @zonaParkir.LongText
+  exception  String   @zonaParkir.LongText
+  failed_at  DateTime @default(now()) @zonaParkir.Timestamp(0)
+}
+
+model job_batches {
+  id             String  @id @zonaParkir.VarChar(255)
+  name           String  @zonaParkir.VarChar(255)
+  total_jobs     Int
+  pending_jobs   Int
+  failed_jobs    Int
+  failed_job_ids String  @zonaParkir.LongText
+  options        String? @zonaParkir.MediumText
+  cancelled_at   Int?
+  created_at     Int
+  finished_at    Int?
+}
+
+model jobs {
+  id           BigInt @id @default(autoincrement()) @zonaParkir.UnsignedBigInt
+  queue        String @zonaParkir.VarChar(255)
+  payload      String @zonaParkir.LongText
+  attempts     Int    @zonaParkir.UnsignedTinyInt
+  reserved_at  Int?   @zonaParkir.UnsignedInt
+  available_at Int    @zonaParkir.UnsignedInt
+  created_at   Int    @zonaParkir.UnsignedInt
+
+  @@index([queue], map: "jobs_queue_index")
+}
+
+model migrations {
+  id        Int    @id @default(autoincrement()) @zonaParkir.UnsignedInt
+  migration String @zonaParkir.VarChar(255)
+  batch     Int
+}
+
+model model_has_permissions {
+  permission_id String      @zonaParkir.Char(36)
+  model_type    String      @zonaParkir.VarChar(255)
+  model_id      String      @zonaParkir.Char(36)
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "model_has_permissions_permission_id_foreign")
+
+  @@id([permission_id, model_id, model_type])
+  @@index([model_id, model_type], map: "model_has_permissions_model_id_model_type_index")
+}
+
+model model_has_roles {
+  role_id    String @zonaParkir.Char(36)
+  model_type String @zonaParkir.VarChar(255)
+  model_id   String @zonaParkir.Char(36)
+  roles      roles  @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "model_has_roles_role_id_foreign")
+
+  @@id([role_id, model_id, model_type])
+  @@index([model_id, model_type], map: "model_has_roles_model_id_model_type_index")
+}
+
+model password_reset_tokens {
+  email      String    @id @zonaParkir.VarChar(255)
+  token      String    @zonaParkir.VarChar(255)
+  created_at DateTime? @zonaParkir.Timestamp(0)
+}
+
+model pengawas {
+  id            String    @id @zonaParkir.Char(36)
+  nama_pengawas String    @zonaParkir.VarChar(255)
+  created_at    DateTime? @zonaParkir.Timestamp(0)
+  updated_at    DateTime? @zonaParkir.Timestamp(0)
+  deleted_at    DateTime? @zonaParkir.Timestamp(0)
+}
+
+model permissions {
+  id                    String                  @id @zonaParkir.Char(36)
+  name                  String                  @zonaParkir.VarChar(255)
+  guard_name            String                  @zonaParkir.VarChar(255)
+  created_at            DateTime?               @zonaParkir.Timestamp(0)
+  updated_at            DateTime?               @zonaParkir.Timestamp(0)
+  model_has_permissions model_has_permissions[]
+  role_has_permissions  role_has_permissions[]
+
+  @@index([name, guard_name], map: "permissions_name_guard_name_index")
+}
+
+model personal_access_tokens {
+  id             String    @id @zonaParkir.Char(36)
+  tokenable_type String    @zonaParkir.VarChar(255)
+  tokenable_id   String    @zonaParkir.Char(36)
+  name           String    @zonaParkir.VarChar(255)
+  token          String    @unique(map: "personal_access_tokens_token_unique") @zonaParkir.VarChar(64)
+  abilities      String?   @zonaParkir.Text
+  last_used_at   DateTime? @zonaParkir.Timestamp(0)
+  expires_at     DateTime? @zonaParkir.Timestamp(0)
+  created_at     DateTime? @zonaParkir.Timestamp(0)
+  updated_at     DateTime? @zonaParkir.Timestamp(0)
+
+  @@index([tokenable_type, tokenable_id], map: "personal_access_tokens_tokenable_type_tokenable_id_index")
+}
+
+model role_has_permissions {
+  permission_id String      @zonaParkir.Char(36)
+  role_id       String      @zonaParkir.Char(36)
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "role_has_permissions_permission_id_foreign")
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "role_has_permissions_role_id_foreign")
+
+  @@id([permission_id, role_id])
+  @@index([role_id], map: "role_has_permissions_role_id_foreign")
+}
+
+model roles {
+  id                   String                 @id @zonaParkir.Char(36)
+  name                 String                 @zonaParkir.VarChar(255)
+  guard_name           String                 @zonaParkir.VarChar(255)
+  created_at           DateTime?              @zonaParkir.Timestamp(0)
+  updated_at           DateTime?              @zonaParkir.Timestamp(0)
+  deleted_at           DateTime?              @zonaParkir.Timestamp(0)
+  model_has_roles      model_has_roles[]
+  role_has_permissions role_has_permissions[]
+
+  @@index([deleted_at], map: "roles_deleted_at_index")
+  @@index([name, guard_name], map: "roles_name_guard_name_index")
+}
+
+model sessions {
+  id            String  @id @zonaParkir.VarChar(255)
+  user_id       BigInt? @zonaParkir.UnsignedBigInt
+  ip_address    String? @zonaParkir.VarChar(45)
+  user_agent    String? @zonaParkir.Text
+  payload       String  @zonaParkir.LongText
+  last_activity Int
+
+  @@index([last_activity], map: "sessions_last_activity_index")
+  @@index([user_id], map: "sessions_user_id_index")
+}
+
+model users {
+  id             String    @id @zonaParkir.Char(36)
+  name           String    @zonaParkir.VarChar(255)
+  username       String    @zonaParkir.VarChar(255)
+  is_active      Boolean   @default(true)
+  password       String    @zonaParkir.VarChar(255)
+  remember_token String?   @zonaParkir.VarChar(100)
+  created_at     DateTime? @zonaParkir.Timestamp(0)
+  updated_at     DateTime? @zonaParkir.Timestamp(0)
+  deleted_at     DateTime? @zonaParkir.Timestamp(0)
+
+  @@index([deleted_at], map: "users_deleted_at_index")
+  @@index([is_active], map: "users_is_active_index")
+  @@index([username], map: "users_username_index")
+}
+
+model variables {
+  id         String    @id @zonaParkir.Char(36)
+  name       String?   @zonaParkir.VarChar(255)
+  content    String?   @zonaParkir.Text
+  created_at DateTime? @zonaParkir.Timestamp(0)
+  updated_at DateTime? @zonaParkir.Timestamp(0)
+  deleted_at DateTime? @zonaParkir.Timestamp(0)
+
+  @@index([deleted_at], map: "variables_deleted_at_index")
+}
+
+model wilayahs {
+  id           String    @id @zonaParkir.Char(36)
+  nama_wilayah String    @zonaParkir.VarChar(255)
+  created_at   DateTime? @zonaParkir.Timestamp(0)
+  updated_at   DateTime? @zonaParkir.Timestamp(0)
+  deleted_at   DateTime? @zonaParkir.Timestamp(0)
+}
+
+model zonas {
+  id           String    @id @zonaParkir.Char(36)
+  wilayah_id   String?   @zonaParkir.Char(36)
+  pengawas_id  String?   @zonaParkir.Char(36)
+  jalan        String?   @zonaParkir.VarChar(512)
+  potensi_hk   Int       @default(0) @zonaParkir.UnsignedInt
+  potensi_hs   Int       @default(0) @zonaParkir.UnsignedInt
+  potensi_hm   Int       @default(0) @zonaParkir.UnsignedInt
+  potensi_hlu  Int       @default(0) @zonaParkir.UnsignedInt
+  potensi_hls  Int       @default(0) @zonaParkir.UnsignedInt
+  jumlah_jukir Int       @default(0) @zonaParkir.UnsignedInt
+  created_at   DateTime? @zonaParkir.Timestamp(0)
+  updated_at   DateTime? @zonaParkir.Timestamp(0)
+  deleted_at   DateTime? @zonaParkir.Timestamp(0)
+
+  @@index([deleted_at], map: "zonas_deleted_at_index")
+  @@index([pengawas_id], map: "zonas_pengawas_id_index")
+  @@index([wilayah_id], map: "zonas_wilayah_id_index")
+}
+
+enum complaints_status {
+  waiting
+  on_process @map("on process")
+  rejected
+  completed
+}

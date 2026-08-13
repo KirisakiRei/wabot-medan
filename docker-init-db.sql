@@ -1,0 +1,2 @@
+CREATE DATABASE IF NOT EXISTS chatbot_pelayanan;
+CREATE DATABASE IF NOT EXISTS zona_parkir;

@@ -1,0 +1,767 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id          String    @id @default(uuid())
+  name        String    @unique @db.VarChar(300)
+  description String?   @db.Text
+  is_active   Int       @default(1) @db.TinyInt
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  QuestionBanks    QuestionBank[]
+  ChatWithoutAnwer ChatWithoutAnwer[]
+  RequestBanks     request_banks[]
+
+  @@index([is_active], map: "organizations_is_active_index")
+  @@fulltext([name], map: "organizations_name_fulltext_index")
+  @@map("organizations")
+}
+
+model QuestionCategory {
+  id          String    @id @default(uuid())
+  name        String    @db.VarChar(300)
+  is_active   Int       @default(1) @db.TinyInt
+  description String?   @db.Text
+  order       Int       @default(1) @db.UnsignedInt
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  Questions        QuestionBank[]
+  ChatWithoutAnwer ChatWithoutAnwer[]
+
+  @@index([is_active], map: "question_categories_is_active_index")
+  @@index([order], map: "question_categories_order_index")
+  @@map("question_categories")
+}
+
+model QuestionBank {
+  id              String         @id @default(uuid())
+  organization_id String
+  category_id     String
+  question        String         @db.Text
+  generated_by    GeneratedBy    @default(human)
+  order           Int            @default(1) @db.UnsignedInt
+  status          QuestionStatus @default(waiting)
+  is_active       Int            @default(1) @db.TinyInt
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+  deleted_at      DateTime?
+
+  category          QuestionCategory    @relation(fields: [category_id], references: [id])
+  suggestionsAsBase QuestionSugestion[] @relation("BaseToSuggestion")
+  suggestionsAsList QuestionSugestion[] @relation("ListToSuggestion")
+  Organization      Organization?       @relation(fields: [organization_id], references: [id])
+  AnsweredChat      AnsweredChat[]
+  Answers           QuestionAnswer[]
+  RAG               QuestionRAG[]
+
+  @@index([is_active], map: "question_banks_is_active_index")
+  @@index([status], map: "question_banks_status_index")
+  @@fulltext([question], map: "question_banks_question_fulltext_index")
+  @@map("question_banks")
+}
+
+enum GeneratedBy {
+  AI
+  human
+}
+
+model QuestionRAG {
+  id           String       @id @default(uuid()) @db.Char(36)
+  question_id  String       @db.Char(36)
+  question_rag String       @db.Text
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+  deleted_at   DateTime?
+  Questions    QuestionBank @relation(fields: [question_id], references: [id])
+
+  @@index([deleted_at], map: "question_rags_deleted_at_index")
+  @@index([question_id], map: "question_rags_question_id_index")
+  @@map("question_rags")
+}
+
+model QuestionAnswer {
+  id          String     @id @default(uuid()) @db.Char(36)
+  question_id String     @db.Char(36)
+  answer_type AnswerType @default(text)
+  answer      Json
+  order       Int        @default(1) @db.UnsignedInt
+  is_active   Int        @default(1) @db.TinyInt
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  deleted_at  DateTime?
+
+  Questions QuestionBank @relation(fields: [question_id], references: [id])
+
+  @@index([deleted_at], map: "question_answers_deleted_at_index")
+  @@index([is_active], map: "question_answers_is_active_index")
+  @@index([order], map: "question_answers_order_index")
+  @@map("question_answers")
+}
+
+model QuestionSugestion {
+  id                    String    @id @default(uuid()) @db.Char(36)
+  question_base_id      String    @db.Char(36)
+  question_sugestion_id String    @db.Char(36)
+  order                 Int       @default(1) @db.UnsignedInt
+  is_active             Int       @default(1) @db.TinyInt
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+  deleted_at            DateTime?
+
+  questionBase          QuestionBank @relation("BaseToSuggestion", fields: [question_base_id], references: [id])
+  questionSugestionList QuestionBank @relation("ListToSuggestion", fields: [question_sugestion_id], references: [id])
+
+  @@index([is_active], map: "question_sugestions_is_active_index")
+  @@map("question_sugestions")
+}
+
+model ChatList {
+  id           String         @id @default(uuid())
+  year         Int            @db.Year
+  account_name String?        @db.VarChar(255)
+  phone_number String         @unique @db.VarChar(255)
+  status       ChatListStatus @default(ongoing)
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+  deleted_at   DateTime?
+
+  ChatLog         ChatLog[]
+  BlockedChatList BlockedChatListHistory[] @relation("BlockedList")
+
+  @@index([phone_number], map: "chat_lists_phone_number_index")
+  @@index([status], map: "chat_lists_status_index")
+  @@index([year], map: "chat_lists_year_index")
+  @@map("chat_lists")
+}
+
+model BlockedChatListHistory {
+  id                 String        @id @default(uuid())
+  chat_list_id       String        @db.Char(36)
+  reason             String?       @db.Text
+  blocked_expired_at DateTime?
+  blocked_status     BlockedStatus @default(temporary)
+  created_at         DateTime      @default(now())
+  updated_at         DateTime      @updatedAt
+  deleted_at         DateTime?
+
+  blockedChatList ChatList @relation("BlockedList", fields: [chat_list_id], references: [id])
+
+  @@index([chat_list_id], map: "blocked_chat_lists_chat_list_id_index")
+  @@index([created_at], map: "blocked_chat_lists_created_at_index")
+  @@map("blocked_chat_list_histories")
+}
+
+enum BlockedStatus {
+  temporary
+  permanent
+}
+
+model ChatLog {
+  id         String    @id @default(uuid())
+  year       Int       @db.Year
+  chat_id    String
+  message    String?   @db.Text
+  bot_reply  String?   @db.Text
+  chat_room  String?   @db.VarChar(255)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  baseChatList ChatList @relation(fields: [chat_id], references: [id], map: "fk_chatlog_chatlist")
+
+  answeredChats     AnsweredChat[]
+  chatWithoutAnswer ChatWithoutAnwer[]
+
+  @@index([chat_id], map: "chat_logs_chat_id_index")
+  @@index([year], map: "chat_logs_year_index")
+  @@map("chat_logs")
+}
+
+model AnsweredChat {
+  id               String    @id @default(uuid()) @db.Char(36)
+  year             Int       @db.Year
+  chat_log_id      String    @db.Char(36)
+  question_base_id String    @db.Char(36)
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  deleted_at       DateTime?
+
+  baseChatLog  ChatLog      @relation(fields: [chat_log_id], references: [id])
+  chatQuestion QuestionBank @relation(fields: [question_base_id], references: [id])
+
+  @@index([chat_log_id], map: "answered_chats_chat_log_id_index")
+  @@index([deleted_at], map: "answered_chats_deleted_at_index")
+  @@index([question_base_id], map: "answered_chats_question_base_id_index")
+  @@index([year], map: "answered_chats_year_index")
+  @@map("answered_chats")
+}
+
+model ChatWithoutAnwer {
+  id              String                  @id @default(uuid())
+  organization_id String?                 @db.Char(36)
+  category_id     String?                 @db.Char(36)
+  year            Int                     @db.Year
+  chat_log_id     String
+  chat_room       String                  @db.VarChar(255)
+  chat_type       String                  @default("sistem-informasi") @db.VarChar(255)
+  status          StatuS_ChatWithoutAnwer @default(unverified)
+  created_at      DateTime                @default(now())
+  updated_at      DateTime                @updatedAt
+  deleted_at      DateTime?
+
+  chatCategory     QuestionCategory? @relation(fields: [category_id], references: [id])
+  chatOrganization Organization?     @relation(fields: [organization_id], references: [id])
+
+  notAnsweredChatLog ChatLog @relation(fields: [chat_log_id], references: [id])
+
+  @@index([chat_log_id], map: "chat_without_answers_chat_log_id_index")
+  @@index([deleted_at], map: "chat_without_answers_deleted_at_index")
+  @@index([year], map: "chat_without_answers_year_index")
+  @@index([status], map: "chat_without_answers_status_index")
+  @@map("chat_without_answers")
+}
+
+enum StatuS_ChatWithoutAnwer {
+  unverified
+  verified
+}
+
+model ChattingExperienceRating {
+  id         String    @id @default(uuid()) @db.Char(36)
+  rate       Int       @db.UnsignedTinyInt
+  chat_room  String    @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @updatedAt @db.Timestamp(0)
+  deleted_at DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "chatting_experience_rates_deleted_at_index")
+  @@index([rate], map: "chatting_experience_rates_rate_index")
+  @@map("chatting_experience_rates")
+}
+
+model Variables {
+  id         String    @id @db.Char(36)
+  name       String?   @db.VarChar(255)
+  content    String?   @db.Text
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @updatedAt @db.Timestamp(0)
+  deleted_at DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "variables_deleted_at_index")
+  @@map("variables")
+}
+
+model Greetings {
+  id         String    @id @default(uuid()) @db.Char(36)
+  keyword    String    @db.VarChar(255)
+  response   String?   @db.Text
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @updatedAt @db.Timestamp(0)
+  deleted_at DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "greetings_deleted_at_index")
+  @@index([keyword], map: "greetings_keyword_index")
+  @@map("greetings")
+}
+
+model WordFilters {
+  id         String    @id @default(uuid()) @db.Char(36)
+  word       String?   @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @updatedAt @db.Timestamp(0)
+  deleted_at DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "word_filters_deleted_at_index")
+  @@map("word_filters")
+}
+
+model FooterChats {
+  id         String    @id @default(uuid()) @db.Char(36)
+  content    String?   @db.Text
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @updatedAt @db.Timestamp(0)
+  deleted_at DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "footer_chats_deleted_at_index")
+  @@map("footer_chats")
+}
+
+model activity_log {
+  id           String    @id @db.Char(36)
+  log_name     String?   @db.VarChar(255)
+  description  String    @db.Text
+  subject_type String?   @db.VarChar(255)
+  event        String?   @db.VarChar(255)
+  subject_id   String?   @db.Char(36)
+  causer_type  String?   @db.VarChar(255)
+  causer_id    String?   @db.Char(36)
+  properties   Json?
+  batch_uuid   String?   @db.Char(36)
+  created_at   DateTime? @db.Timestamp(0)
+  updated_at   DateTime? @db.Timestamp(0)
+
+  @@index([log_name], map: "activity_log_log_name_index")
+  @@index([causer_type, causer_id], map: "causer")
+  @@index([subject_type, subject_id], map: "subject")
+}
+
+model cache {
+  key        String @id @db.VarChar(255)
+  value      String @db.MediumText
+  expiration Int
+}
+
+model cache_locks {
+  key        String @id @db.VarChar(255)
+  owner      String @db.VarChar(255)
+  expiration Int
+}
+
+model expired_bot_configs {
+  id         String    @id @db.Char(36)
+  message    String?   @db.Text
+  duration   String?   @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+  deleted_at DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "expired_bot_configs_deleted_at_index")
+}
+
+model failed_jobs {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  uuid       String   @unique(map: "failed_jobs_uuid_unique") @db.VarChar(255)
+  connection String   @db.Text
+  queue      String   @db.Text
+  payload    String   @db.LongText
+  exception  String   @db.LongText
+  failed_at  DateTime @default(now()) @db.Timestamp(0)
+}
+
+model job_batches {
+  id             String  @id @db.VarChar(255)
+  name           String  @db.VarChar(255)
+  total_jobs     Int
+  pending_jobs   Int
+  failed_jobs    Int
+  failed_job_ids String  @db.LongText
+  options        String? @db.MediumText
+  cancelled_at   Int?
+  created_at     Int
+  finished_at    Int?
+}
+
+model jobs {
+  id           BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  queue        String @db.VarChar(255)
+  payload      String @db.LongText
+  attempts     Int    @db.UnsignedTinyInt
+  reserved_at  Int?   @db.UnsignedInt
+  available_at Int    @db.UnsignedInt
+  created_at   Int    @db.UnsignedInt
+
+  @@index([queue], map: "jobs_queue_index")
+}
+
+model migrations {
+  id        Int    @id @default(autoincrement()) @db.UnsignedInt
+  migration String @db.VarChar(255)
+  batch     Int
+}
+
+model model_has_permissions {
+  permission_id String      @db.Char(36)
+  model_type    String      @db.VarChar(255)
+  model_id      String      @db.Char(36)
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "model_has_permissions_permission_id_foreign")
+
+  @@id([permission_id, model_id, model_type])
+  @@index([model_id, model_type], map: "model_has_permissions_model_id_model_type_index")
+}
+
+model model_has_roles {
+  role_id    String @db.Char(36)
+  model_type String @db.VarChar(255)
+  model_id   String @db.Char(36)
+  roles      roles  @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "model_has_roles_role_id_foreign")
+
+  @@id([role_id, model_id, model_type])
+  @@index([model_id, model_type], map: "model_has_roles_model_id_model_type_index")
+}
+
+model password_reset_tokens {
+  email      String    @id @db.VarChar(255)
+  token      String    @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+}
+
+model permissions {
+  id                    String                  @id @db.Char(36)
+  name                  String                  @db.VarChar(255)
+  guard_name            String                  @db.VarChar(255)
+  created_at            DateTime?               @db.Timestamp(0)
+  updated_at            DateTime?               @db.Timestamp(0)
+  model_has_permissions model_has_permissions[]
+  role_has_permissions  role_has_permissions[]
+
+  @@index([name, guard_name], map: "permissions_name_guard_name_index")
+}
+
+model personal_access_tokens {
+  id             String    @id @db.Char(36)
+  tokenable_type String    @db.VarChar(255)
+  tokenable_id   String    @db.Char(36)
+  name           String    @db.VarChar(255)
+  token          String    @unique(map: "personal_access_tokens_token_unique") @db.VarChar(64)
+  abilities      String?   @db.Text
+  last_used_at   DateTime? @db.Timestamp(0)
+  expires_at     DateTime? @db.Timestamp(0)
+  created_at     DateTime? @db.Timestamp(0)
+  updated_at     DateTime? @db.Timestamp(0)
+
+  @@index([tokenable_type, tokenable_id], map: "personal_access_tokens_tokenable_type_tokenable_id_index")
+}
+
+model prompts {
+  id         String    @id @db.Char(36)
+  prompt     String?   @db.Text
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+  deleted_at DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "prompts_deleted_at_index")
+}
+
+model request_banks {
+  id                String               @id @db.Char(36) @default(uuid())
+  organization_id   String?              @db.Char(36)
+  category_id       String               @db.Char(36)
+  request_name      String?              @db.Text
+  generated_by      GeneratedBy          @default(human)
+  order             Int                  @default(1) @db.UnsignedInt
+  is_active         Boolean              @default(true)
+  status            request_banks_status @default(waiting)
+  keyword_submit    String               @db.VarChar(255)
+  created_at        DateTime?            @db.Timestamp(0) @default(now())
+  updated_at        DateTime?            @updatedAt @db.Timestamp(0)
+  deleted_at        DateTime?            @db.Timestamp(0)
+  request_histories request_histories[]
+  Organization      Organization?        @relation(fields: [organization_id], references: [id])
+  Category          request_categories   @relation(fields: [category_id], references: [id])
+  RequestRAG        RequestRAG[]
+
+  @@index([is_active], map: "request_banks_is_active_index")
+  @@index([status], map: "request_banks_status_index")
+}
+
+model RequestRAG {
+  id          String    @id @default(uuid()) @db.Char(36)
+  request_id  String    @db.Char(36)
+  request_rag String    @db.Text
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  Requests request_banks @relation(fields: [request_id], references: [id])
+
+  @@index([deleted_at], map: "request_rags_deleted_at_index")
+  @@index([request_id], map: "request_rags_request_id_index")
+  @@map("request_rags")
+}
+
+model request_categories {
+  id          String    @id @db.Char(36)
+  name        String    @db.VarChar(255)
+  is_active   Boolean   @default(true)
+  description String?   @db.Text
+  order       Int       @default(1) @db.UnsignedInt
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  deleted_at  DateTime? @db.Timestamp(0)
+
+  requests request_banks[]
+
+  @@index([is_active], map: "request_categories_is_active_index")
+  @@index([order], map: "request_categories_order_index")
+}
+
+model request_forms {
+  id                      String                    @id @db.Char(36)
+  request_id              String?                   @db.Char(36)
+  form                    String?                   @db.Text
+  type                    request_forms_type        @default(text)
+  order                   Int                       @default(1) @db.UnsignedInt
+  is_active               Boolean                   @default(true)
+  created_at              DateTime?                 @db.Timestamp(0)
+  updated_at              DateTime?                 @db.Timestamp(0)
+  deleted_at              DateTime?                 @db.Timestamp(0)
+  request_history_details request_history_details[]
+
+  @@index([deleted_at], map: "request_forms_deleted_at_index")
+  @@index([is_active], map: "request_forms_is_active_index")
+  @@index([order], map: "request_forms_order_index")
+}
+
+enum request_forms_type {
+  text
+  file
+}
+
+model request_history_details {
+  request_history_id String             @db.Char(36)
+  request_form_id    String             @db.Char(36)
+  value              String?            @db.Text
+  type               request_forms_type @default(text)
+  created_at         DateTime?          @default(now())
+  updated_at         DateTime?          @db.Timestamp(0)
+  deleted_at         DateTime?          @db.Timestamp(0)
+
+  requestHistories request_histories @relation(fields: [request_history_id], references: [id], map: "request_history_details_request_history_id_foreign")
+  requestForms     request_forms     @relation(fields: [request_form_id], references: [id], map: "request_history_details_request_form_id_foreign")
+
+  @@id([request_history_id, request_form_id])
+  @@map("request_history_details")
+}
+
+model request_histories {
+  id                      String                    @id @default(uuid()) @db.Char(36)
+  request_id              String                    @db.Char(36)
+  submit_response         String?                   @db.Text
+  status                  request_histories_status  @default(waiting)
+  sender                  String?                   @db.VarChar(255)
+  created_at              DateTime?                 @default(now())
+  updated_at              DateTime?                 @db.Timestamp(0)
+  deleted_at              DateTime?                 @db.Timestamp(0)
+  request_history_details request_history_details[]
+
+  requestBank request_banks @relation(fields: [request_id], references: [id], map: "request_histories_request_bank_id_foreign")
+
+  @@index([deleted_at], map: "request_histories_deleted_at_index")
+  @@index([status], map: "request_histories_status_index")
+}
+
+model role_has_permissions {
+  permission_id String      @db.Char(36)
+  role_id       String      @db.Char(36)
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "role_has_permissions_permission_id_foreign")
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "role_has_permissions_role_id_foreign")
+
+  @@id([permission_id, role_id])
+  @@index([role_id], map: "role_has_permissions_role_id_foreign")
+}
+
+model roles {
+  id                   String                 @id @db.Char(36)
+  name                 String                 @db.VarChar(255)
+  guard_name           String                 @db.VarChar(255)
+  created_at           DateTime?              @db.Timestamp(0)
+  updated_at           DateTime?              @db.Timestamp(0)
+  deleted_at           DateTime?              @db.Timestamp(0)
+  model_has_roles      model_has_roles[]
+  role_has_permissions role_has_permissions[]
+
+  @@index([deleted_at], map: "roles_deleted_at_index")
+  @@index([name, guard_name], map: "roles_name_guard_name_index")
+}
+
+model service_schedules {
+  id         String    @id @db.Char(36)
+  day        String    @db.VarChar(255)
+  day_number Int       @db.UnsignedTinyInt
+  start_time DateTime? @db.Time(0)
+  end_time   DateTime? @db.Time(0)
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+  deleted_at DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "service_schedules_deleted_at_index")
+}
+
+model sessions {
+  id            String  @id @db.VarChar(255)
+  user_id       BigInt? @db.UnsignedBigInt
+  ip_address    String? @db.VarChar(45)
+  user_agent    String? @db.Text
+  payload       String  @db.LongText
+  last_activity Int
+
+  @@index([last_activity], map: "sessions_last_activity_index")
+  @@index([user_id], map: "sessions_user_id_index")
+}
+
+model spam_filters {
+  id           String    @id @db.Char(36)
+  phone_number String?   @db.VarChar(255)
+  created_at   DateTime? @db.Timestamp(0)
+  updated_at   DateTime? @db.Timestamp(0)
+  deleted_at   DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "spam_filters_deleted_at_index")
+}
+
+model unanswered_questions {
+  id              String                      @id @db.Char(36)
+  organization_id String?                     @db.Char(36)
+  category_id     String                      @db.Char(36)
+  question        String?                     @db.Text
+  status          unanswered_questions_status @default(unverified)
+  created_at      DateTime?                   @db.Timestamp(0)
+  updated_at      DateTime?                   @db.Timestamp(0)
+  deleted_at      DateTime?                   @db.Timestamp(0)
+
+  @@index([status], map: "unanswered_questions_status_index")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model user_organizations {
+  user_id         String    @db.Char(36)
+  organization_id String    @db.Char(36)
+  created_at      DateTime? @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+  deleted_at      DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "user_organizations_deleted_at_index")
+  @@index([user_id, organization_id], map: "user_organizations_user_id_organization_id_index")
+  @@ignore
+}
+
+model users {
+  id             String    @id @db.Char(36)
+  name           String    @db.VarChar(255)
+  username       String    @db.VarChar(255)
+  is_active      Boolean   @default(true)
+  password       String    @db.VarChar(255)
+  remember_token String?   @db.VarChar(100)
+  created_at     DateTime? @db.Timestamp(0)
+  updated_at     DateTime? @db.Timestamp(0)
+  deleted_at     DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "users_deleted_at_index")
+  @@index([is_active], map: "users_is_active_index")
+  @@index([username], map: "users_username_index")
+}
+
+model w_a_agents {
+  id         String          @id @db.Char(36)
+  session    String          @db.VarChar(255)
+  is_active  Boolean         @default(true)
+  type       w_a_agents_type @default(official)
+  created_at DateTime?       @db.Timestamp(0)
+  updated_at DateTime?       @db.Timestamp(0)
+  deleted_at DateTime?       @db.Timestamp(0)
+
+  @@index([deleted_at], map: "w_a_agents_deleted_at_index")
+  @@index([is_active], map: "w_a_agents_is_active_index")
+  @@index([session], map: "w_a_agents_session_index")
+  @@index([type], map: "w_a_agents_type_index")
+}
+
+model w_a_official_quotas {
+  id         String    @id @db.Char(36)
+  quota      Int       @default(0) @db.UnsignedInt
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+  deleted_at DateTime? @db.Timestamp(0)
+
+  @@index([deleted_at], map: "w_a_official_quotas_deleted_at_index")
+}
+
+model ComplaintTemplates {
+  id             String    @id @default(uuid()) @db.Char(36)
+  content        String    @db.Text
+  keyword_submit String    @db.VarChar(255)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  deleted_at     DateTime?
+
+  @@index([deleted_at], map: "complaint_templates_deleted_at_index")
+  @@map("complaint_templates")
+}
+
+model Complaints {
+  id              String          @id @default(uuid()) @db.Char(36)
+  code            String          @unique @db.VarChar(255)
+  submit_response Json?
+  status          ComplaintStatus @default(waiting)
+  sender          String          @db.VarChar(255)
+  sender_name     String?         @db.VarChar(255)
+  created_at      DateTime        @default(now())
+  updated_at      DateTime        @updatedAt
+  deleted_at      DateTime?
+
+  @@index([code], map: "complaints_code_index")
+  @@map("complaints")
+}
+
+model GreetiingFiles {
+  id         String    @id @default(uuid()) @db.Char(36)
+  name       String    @db.VarChar(255)
+  file       String    @db.VarChar(255)
+  is_default Int       @db.TinyInt
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  @@index([name])
+  @@map("greeting_files")
+}
+
+enum ComplaintStatus {
+  waiting
+  on_process @map("on process")
+  rejected
+  completed
+}
+
+enum QuestionStatus {
+  waiting
+  approved
+  rejected
+}
+
+enum AnswerType {
+  text
+  image
+  video
+  document
+  audio
+  location
+}
+
+enum ChatListStatus {
+  ongoing
+  finished
+}
+
+enum request_histories_status {
+  waiting
+  approved
+  rejected
+}
+
+enum w_a_agents_type {
+  official
+  non_official @map("non official")
+}
+
+enum unanswered_questions_status {
+  unverified
+  verified
+}
+
+enum request_banks_status {
+  waiting
+  approved
+  rejected
+}

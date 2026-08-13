@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    image: <username_docker_hub_anda>/wa-bot-app:latest  # Ganti dengan username Docker Hub Anda
+    container_name: wa-bot-app
+    restart: unless-stopped
+    # Menggunakan network_mode "host" berarti container ini akan meminjam IP dan Port dari VPS secara langsung.
+    # Ini memungkinkan aplikasi memanggil "localhost:3306" atau "localhost:6379" dan langsung terhubung
+    # ke MySQL dan Redis yang sudah berjalan di VPS Anda saat ini.
+    network_mode: "host"
+    environment:
+      # PENTING: Karena menggunakan network host, kita bisa menggunakan localhost.
+      # Pastikan password dan detailnya sesuai dengan database di VPS Anda.
+      - DATABASE_URL=mysql://root:@localhost:3306/chatbot_pelayanan
+      - DATABASE_URL_ZONA_PARKIR=mysql://root:@localhost:3306/zona_parkir
+      - REDIS_HOST=localhost
+      - PORT=8000

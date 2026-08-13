@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wa-bot-app
+    restart: unless-stopped
+    ports:
+      - "3001:8000"
+    environment:
+      - DATABASE_URL=mysql://root:@mysql:3306/chatbot_pelayanan
+      - DATABASE_URL_ZONA_PARKIR=mysql://root:@mysql:3306/zona_parkir
+      - REDIS_HOST=redis
+      - PORT=8000
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - wa-bot-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: wa-bot-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker-init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wa-bot-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: wa-bot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - wa-bot-network
+
+networks:
+  wa-bot-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:

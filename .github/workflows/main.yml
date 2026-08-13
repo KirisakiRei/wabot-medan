@@ -1,0 +1,36 @@
+name: Build and Push Docker Image to Docker Hub
+
+on:
+  push:
+    branches:
+      - main # Workflow akan berjalan otomatis setiap ada push ke branch 'main'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Mengambil source code dari repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup Buildx (diperlukan untuk fitur build lanjutan)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 3. Login ke Docker Hub menggunakan rahasia (Secrets) dari GitHub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 4. Build image dan Push ke Docker Hub
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          # Ganti 'wa-bot-app' dengan nama image yang Anda inginkan
+          tags: ${{ secrets.DOCKER_USERNAME }}/wa-bot-app:latest
