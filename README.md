@@ -197,6 +197,57 @@ python3 -m pip install -r nanobot/requirements.txt
 pm2 restart ecosystem.config.js --update-env
 ```
 
+#### PM2 untuk versi development di VPS yang sama dengan production
+
+Jika production sudah berjalan di VPS yang sama, gunakan config develop terpisah:
+
+```txt
+ecosystem.develop.config.js
+```
+
+Default port develop:
+
+```txt
+Backend develop : 8011
+Nanobot develop : 8766
+```
+
+Env backend develop (`.env`) tetap dibuat seperti biasa, tapi gunakan port berbeda:
+
+```env
+PORT=8011
+NODE_ENV=development
+NANOBOT_ENGINE_URL=http://127.0.0.1:8766
+```
+
+Env Nanobot develop (`nanobot/.env`):
+
+```env
+NANOBOT_BACKEND_URL=http://127.0.0.1:8011
+NANOBOT_PORT=8766
+```
+
+Jalankan develop dengan PM2:
+
+```bash
+export NANOBOT_PYTHON=/var/www/wabot-medan-dev/.venv/bin/python
+pm2 start ecosystem.develop.config.js
+pm2 save
+```
+
+Cek log develop:
+
+```bash
+pm2 logs wabot-backend-dev
+pm2 logs wabot-nanobot-dev
+```
+
+Restart develop setelah update:
+
+```bash
+pm2 restart ecosystem.develop.config.js --update-env
+```
+
 ---
 
 ## Struktur Proyek Utama
