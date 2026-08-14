@@ -232,35 +232,55 @@ export class AiService {
         });
     }
 
-    async generateRAGText(question: string, variables: Variables[]): Promise<string | null> {
-        const systemContent = variables.find((item) => item.name === "AI_RAG_TEXT_GENERATOR").content;
+    async generateLLMText({ system, user, temperature = 0.2, maxTokens = 1500, topP = 0.8 }: {
+        system: string;
+        user: string;
+        temperature?: number;
+        maxTokens?: number;
+        topP?: number;
+    }): Promise<string | null> {
+        // LLM aktif diambil WAJIB dari .env (AI_LLM_*), tanpa hardcode URL.
+        // Tidak memakai AI_DEMO_* sebagai fallback agar miskonfigurasi
+        // langsung terlihat, bukan diam-diam memanggil provider lama.
+        const baseURL = process.env.AI_LLM_BASE_URL;
+        const model = process.env.AI_LLM_MODEL;
+        const apiKey = process.env.AI_LLM_API_KEY;
 
-        this.logger.debug(`GENERATE RAG TEXT QUESTION : ${question}`, `AiService/generateRAGText`);
+        if (!baseURL || !model) {
+            this.logger.error("AI_LLM_BASE_URL atau AI_LLM_MODEL belum diatur di .env", `${AiService.name}/${this.generateLLMText.name}`);
+            return null;
+        }
+
+        const api = axios.create({
+            baseURL,
+            timeout: 600000,
+            headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
+        });
 
         const payload: payloadLintas = {
-            model: "meta/llama-4-maverick-instruct",
+            model,
             messages: [
                 {
                     role: "system",
-                    content: systemContent
+                    content: system
                 },
                 {
                     role: "user",
-                    content: question
+                    content: user
                 }
             ],
-            "stream": false,
-            "temperature": 0.9,
-            "max_tokens": 100,
-            "top_p": 1
+            stream: false,
+            temperature,
+            max_tokens: maxTokens,
+            top_p: topP
         };
 
-        return await this.AIDEMO.post<sessionResponse>("chat/completions", payload).then((response) => {
-            this.logger.debug(`GENERATE RAG TEXT : ${JSON.stringify(response.data.choices[0].message.content)}`, `AiService/generateRAGText`);
+        return await api.post<sessionResponse>("chat/completions", payload).then((response) => {
+            this.logger.debug(`GENERATE LLM TEXT RESPONSE : ${JSON.stringify(response.data.choices[0].message.content)}`, `${AiService.name}/${this.generateLLMText.name}`);
 
             return response.data.choices[0].message.content;
         }).catch((error) => {
-            this.logger.error("Error Generate RAG Text", error, `${AiService.name}/${this.generateRAGText.name}`);
+            this.logger.error("Error Generate LLM Text", error, `${AiService.name}/${this.generateLLMText.name}`);
             return null;
         });
     }
@@ -315,9 +335,7 @@ export class AiService {
             headers: {
                 "Content-Type": "application/json"
             }
-        }).catch((error) => {
-            this.logger.error("There is an error when send request to RAG Question", `${error}`, `${AiService.name}/${this.questionRAG.name}`);
-        })
+        });
     }
 
     async requestRAG({ request_rag_id, request_id, request_name, request_rag_name, organization_id }: {
@@ -340,9 +358,7 @@ export class AiService {
             headers: {
                 "Content-Type": "application/json"
             }
-        }).catch((error) => {
-            this.logger.error("There is an error when send request to RAG Question", `${error}`, `${AiService.name}/${this.questionRAG.name}`);
-        })
+        });
     }
 
     async geminiGenrateText({parts, temperature, topP, maxOutputTokens, variables}:{parts: { text: string }[], temperature: number, topP: number, maxOutputTokens: number, variables: Variables[]}) : Promise<string | null> {

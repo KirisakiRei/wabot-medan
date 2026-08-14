@@ -1,8 +1,7 @@
-# SKILLS — Peta Skill Pemko
+# SKILLS — Peta Skill Asisten Virtual Pemko
 
-File ini adalah manifest untuk manusia dan ringkasan muatan skill runtime.
-Aturan operasional lengkap berada di `skills/<nama-skill>/SKILL.md` dan `ROUTING.md`,
-dimuat otomatis sesuai route aktif.
+File ini adalah manifest fungsi dan ringkasan muatan skill runtime yang dapat kamu gunakan.
+Aturan operasional lengkap berada di `skills/<nama-skill>/SKILL.md` dan `ROUTING.md`, yang dimuat otomatis sesuai route aktif. Kamu diwajibkan memanggil tool ini sesuai dengan kebutuhan layanan.
 
 ## Daftar Skill
 
@@ -16,10 +15,8 @@ dimuat otomatis sesuai route aktif.
 ## Tool yang Dikuasai
 
 1. **Informasi** — `search_information`: pertanyaan fakta/syarat/prosedur/lokasi/biaya.
-2. **Usulan** — `find_proposal_service`, `get_proposal_schema`, `create_proposal_draft`,
-   `update_proposal_field`, `validate_proposal`, `submit_proposal`, `cancel_proposal`.
-3. **Pengaduan** — `start_complaint`, `append_complaint`, `submit_complaint`,
-   `cancel_complaint`, `check_complaint_status`.
+2. **Usulan** — `find_proposal_service`, `get_proposal_schema`, `create_proposal_draft`, `update_proposal_field`, `validate_proposal`, `submit_proposal`, `cancel_proposal`.
+3. **Pengaduan** — `start_complaint`, `append_complaint`, `submit_complaint`, `cancel_complaint`, `check_complaint_status`.
 4. **Status** — `get_submission_status` (usulan), `check_complaint_status` (pengaduan).
 
 ## Panduan Pemilihan Skill

@@ -440,7 +440,6 @@ class AgentLoop:
     # ========================================================================
     def _build_system_prompt(self, state: dict) -> str:
         soul = self._read_prompt("soul.md")
-        memory = self._read_prompt("memory.md")
         skills = self._read_prompt("skills.md")
         routing = self._read_prompt("ROUTING.md")
         safety = self._read_prompt("SAFETY.md")
@@ -450,10 +449,9 @@ class AgentLoop:
 
         tools_block = "--- DAFTAR TOOL TERSEDIA ---\n" + tool_descriptions()
 
-        sections = [soul, memory, skills, routing, safety]
+        sections = [soul, memory_block, skills, routing, safety]
         if active_skill:
             sections.append(active_skill)
-        sections.append(memory_block)
         sections.append(tools_block)
 
         return "\n\n".join(section for section in sections if section)
@@ -472,27 +470,32 @@ class AgentLoop:
             return ""
 
     def _build_memory_block(self, state: dict) -> str:
+        memory_template = self._read_prompt("memory.md")
         service = state.get("service")
         ticket = state.get("ticket")
 
-        lines = [
-            "--- INGATAN AKTIF ---",
-            f"Route aktif: {state.get('route', 'NONE')}",
-            f"Langkah form: {state.get('step', 0)}",
-            f"Layanan: {service.get('request_name') if service else 'tidak ada'}",
-            f"Menunggu isian form: {'ya' if state.get('pending_form_id') else 'tidak'}",
-        ]
+        route = state.get("route", "NONE")
+        step = str(state.get("step", 0))
+        ticket_val = str(ticket) if ticket else "null"
 
-        if ticket:
-            lines.append(f"Tiket aktif: {ticket}")
+        collected = []
+        if service and service.get("request_name"):
+            collected.append(f"Layanan: {service.get('request_name')}")
+        collected.append(f"Menunggu isian form: {'ya' if state.get('pending_form_id') else 'tidak'}")
+        collected_str = "; ".join(collected)
+
+        injected = memory_template.replace("{INJECT_ROUTE}", route)
+        injected = injected.replace("{INJECT_STEP}", step)
+        injected = injected.replace("{INJECT_TICKET_ID}", ticket_val)
+        injected = injected.replace("{INJECT_COLLECTED_DATA}", collected_str)
 
         compact = state.get("compact_memory") or {}
         if compact.get("summary"):
-            lines.append("")
-            lines.append("--- RINGKASAN PERCAKAPAN SEBELUMNYA ---")
-            lines.append(json.dumps(compact.get("summary"), ensure_ascii=False))
+            injected += "\n\n<RINGKASAN_SEBELUMNYA>\n"
+            injected += json.dumps(compact.get("summary"), ensure_ascii=False)
+            injected += "\n</RINGKASAN_SEBELUMNYA>"
 
-        return "\n".join(lines)
+        return injected
 
     def _read_prompt(self, name: str) -> str:
         try:

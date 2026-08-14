@@ -30,7 +30,14 @@ export class QueueService {
     }
 
     async addGenerateRagQueue(name: string, data: QuestionRagPayload | RequestRagPayload) {
-        await this.generateRagQueue.add(name,data).catch((err) => {
+        await this.generateRagQueue.add(name, data, {
+            // Retry sinkronisasi RAG service yang sempat down; idempoten berkat
+            // dedup cek existing di processor (variasi yang sudah masuk di-skip).
+            attempts: 3,
+            backoff: { type: "exponential", delay: 5000 },
+            removeOnComplete: 1000,
+            removeOnFail: 1000
+        }).catch((err) => {
             this.loggerService.error(`Error adding job to generate-rag queue: ${err}`, `QueueService/addGenerateRagQueue`);
         });
     }

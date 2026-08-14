@@ -53,6 +53,11 @@ API_URL="https://wabot.medan.go.id/api-manajemen"
 AI_DEMO_BASE_URL="https://dekallm.cloudeka.ai/v1"
 AI_DEMO_API_KEY="API_KEY_OPENAI_COMPATIBLE"
 AI_DEMO_MODEL="meta/llama-4-maverick-instruct"
+# LLM aktif (router LLM saat ini) - WAJIB diisi, dipakai pipeline generate variasi RAG
+# (generate-question-rag / generate-request-rag). Tidak ada default hardcode.
+AI_LLM_BASE_URL="https://<LLM_ROUTER_URL>/v1"
+AI_LLM_API_KEY="API_KEY_LLM_ROUTER"
+AI_LLM_MODEL="<NAMA_MODEL_DI_ROUTER>"
 AI_GENERATOR="http://<IP_AI_SERVER>:<PORT>"
 MODEL="gemma:2b"
 TEMPERATURE=0.7
