@@ -5,6 +5,10 @@ import { BotWithoutFlowService } from "src/bot-without-flow/bot-without-flow.ser
 import { LoggerService } from "src/logger/logger.service";
 import Redis from "ioredis";
 
+type ChatJobPayload = BotWebhookPayload & {
+    debounceToken?: string;
+};
+
 @Processor('ai-chat', { concurrency: 100 })
 export class ProcessChatProcessor extends WorkerHost {
 
@@ -17,46 +21,74 @@ export class ProcessChatProcessor extends WorkerHost {
     }
 
     async process(job: Job, token?: string): Promise<any> {
-        const payload: BotWebhookPayload = job.data;
+        const payload: ChatJobPayload = job.data;
         const phoneNumber = payload.phone_number;
 
         if (!phoneNumber) {
             return;
         }
 
-        const lockKey = `lock:user:${phoneNumber}`;
-
-        // 1. Per-User Mutex Lock (TTL 60 detik) untuk mencegah race condition
-        // jika 2 pesan dari user yang sama diproses secara paralel
-        const acquired = await this.redis.set(lockKey, "locked", "EX", 60, "NX");
-
-        if (!acquired) {
-            this.loggerService.log(`User ${phoneNumber} sedang aktif diproses LLM. Menunda eksekusi pesan berikutnya 2 detik...`);
-            if (token) {
-                await job.moveToDelayed(Date.now() + 2000, token);
+        // 0. Debounce gate: hanya job dengan token terbaru yang boleh jalan.
+        // Job lama (dari pesan cepat sebelumnya) di-skip tanpa error.
+        const debounceKey = `chat-debounce:${phoneNumber}`;
+        if (payload.debounceToken) {
+            const currentToken = await this.redis.get(debounceKey);
+            if (currentToken && currentToken !== payload.debounceToken) {
+                this.loggerService.log(
+                    `Skip job stale untuk ${phoneNumber} (token lama, ada pesan lebih baru)`,
+                    ProcessChatProcessor.name
+                );
                 return;
-            } else {
-                throw new Error(`Lock untuk ${phoneNumber} sedang sibuk, menjadwalkan ulang...`);
             }
         }
 
+        const lockKey = `lock:user:${phoneNumber}`;
+
+        // 1. Per-User Mutex Lock (TTL 90 detik) — LLM + typing bisa > 60 detik
+        const acquired = await this.redis.set(lockKey, "locked", "EX", 90, "NX");
+
+        if (!acquired) {
+            this.loggerService.log(
+                `User ${phoneNumber} sedang diproses. Menunda 3 detik...`,
+                ProcessChatProcessor.name
+            );
+            if (token) {
+                await job.moveToDelayed(Date.now() + 3000, token);
+                return;
+            }
+            throw new Error(`Lock untuk ${phoneNumber} sedang sibuk, retry...`);
+        }
+
         try {
-            this.loggerService.log(`Memulai proses chat untuk nomor ${phoneNumber}`, ProcessChatProcessor.name);
+            this.loggerService.log(
+                `Memulai proses chat untuk nomor ${phoneNumber}`,
+                ProcessChatProcessor.name
+            );
 
             // 2. Ambil dan agregasikan seluruh pesan dalam buffer debounce
             const bufferKey = `chat-buffer:${phoneNumber}`;
             const rawMessages = await this.redis.lrange(bufferKey, 0, -1);
             await this.redis.del(bufferKey);
 
-            const mergedPayload = this.aggregateBufferedMessages(payload, rawMessages);
+            // Bersihkan token debounce agar job follow-up berikutnya tidak tertahan
+            await this.redis.del(debounceKey);
+
+            const { debounceToken: _token, ...cleanPayload } = payload;
+            const mergedPayload = this.aggregateBufferedMessages(cleanPayload, rawMessages);
 
             switch (job.name) {
                 case "ai-chat":
                     await this.botService.sendChatService(mergedPayload);
-                    this.loggerService.log(`Selesai proses chat untuk nomor ${phoneNumber}`, ProcessChatProcessor.name);
+                    this.loggerService.log(
+                        `Selesai proses chat untuk nomor ${phoneNumber}`,
+                        ProcessChatProcessor.name
+                    );
                     break;
                 default:
-                    this.loggerService.warn(`No handler for job: ${job.name}`, ProcessChatProcessor.name);
+                    this.loggerService.warn(
+                        `No handler for job: ${job.name}`,
+                        ProcessChatProcessor.name
+                    );
             }
         } catch (error: any) {
             this.loggerService.error(
@@ -66,7 +98,6 @@ export class ProcessChatProcessor extends WorkerHost {
             );
             throw error;
         } finally {
-            // Lepaskan lock setelah proses selesai
             await this.redis.del(lockKey);
         }
     }
@@ -74,9 +105,20 @@ export class ProcessChatProcessor extends WorkerHost {
     /**
      * Menggabungkan rentetan pesan chat yang dikirim cepat dalam rentang debounce window.
      */
-    private aggregateBufferedMessages(initialPayload: BotWebhookPayload, rawMessages: string[]): BotWebhookPayload {
-        if (!rawMessages || rawMessages.length <= 1) {
+    private aggregateBufferedMessages(
+        initialPayload: BotWebhookPayload,
+        rawMessages: string[]
+    ): BotWebhookPayload {
+        if (!rawMessages || rawMessages.length === 0) {
             return initialPayload;
+        }
+
+        if (rawMessages.length === 1) {
+            try {
+                return JSON.parse(rawMessages[0]) as BotWebhookPayload;
+            } catch {
+                return initialPayload;
+            }
         }
 
         const parsedList: BotWebhookPayload[] = [];
@@ -84,7 +126,7 @@ export class ProcessChatProcessor extends WorkerHost {
             try {
                 parsedList.push(JSON.parse(raw));
             } catch {
-                // Abaikan jika ada item rusak
+                // Abaikan item rusak
             }
         }
 
@@ -92,15 +134,14 @@ export class ProcessChatProcessor extends WorkerHost {
             return initialPayload;
         }
 
-        // Ambil pesan terakhir sebagai base (author, timestamp terbaru)
         const lastPayload = parsedList[parsedList.length - 1];
-
-        // Kumpulkan seluruh teks chat / caption yang masuk
         const textParts: string[] = [];
         let mediaPayload: BotWebhookPayload | null = null;
 
         for (const item of parsedList) {
-            const isMedia = item.message && (item.message.startsWith("http://") || item.message.startsWith("https://"));
+            const isMedia =
+                item.message &&
+                (item.message.startsWith("http://") || item.message.startsWith("https://"));
             if (isMedia) {
                 mediaPayload = item;
                 if (item.caption && item.caption.trim()) {

@@ -10,71 +10,60 @@ import Redis from 'ioredis';
 export class QueueService {
 
     constructor(
-        @InjectQueue('ai-chat') private aiChatQueue : Queue,
-        @InjectQueue('generate-rag') private generateRagQueue : Queue,
-        @InjectQueue('generate-question-request') private generateQuestionRequestQueue : Queue,
-        private readonly loggerService : LoggerService,
+        @InjectQueue('ai-chat') private aiChatQueue: Queue,
+        @InjectQueue('generate-rag') private generateRagQueue: Queue,
+        @InjectQueue('generate-question-request') private generateQuestionRequestQueue: Queue,
+        private readonly loggerService: LoggerService,
         private readonly redis: Redis
-    ){}
+    ) {}
 
+    /**
+     * Debounce per nomor: buffer pesan di Redis, jadwalkan 1 job delayed.
+     * Token debounce di Redis memastikan hanya "gelombang" terakhir yang dieksekusi,
+     * tanpa jobId BullMQ tetap (yang sering stuck setelah complete/fail).
+     */
     async addQueue(name: string, data: BotWebhookPayload) {
         if (!data.phone_number) return;
 
-        const bufferKey = `chat-buffer:${data.phone_number}`;
-        const jobId = `debounce:${data.phone_number}`;
+        const phone = data.phone_number;
+        const bufferKey = `chat-buffer:${phone}`;
+        const debounceKey = `chat-debounce:${phone}`;
         const debounceMs = parseInt(process.env.CHAT_DEBOUNCE_MS || "2000", 10);
+        // TTL token sedikit lebih panjang dari delay agar race kecil tetap aman
+        const tokenTtlSec = Math.max(10, Math.ceil(debounceMs / 1000) + 8);
 
         try {
-            // 1. Simpan pesan masuk ke antrean buffer Redis per nomor
+            // 1. Buffer pesan
             await this.redis.rpush(bufferKey, JSON.stringify(data));
-            await this.redis.expire(bufferKey, 60);
+            await this.redis.expire(bufferKey, 120);
 
-            // 2. Bersihkan job lama dengan jobId yang sama.
-            // BullMQ menolak add() jika jobId masih ada (delayed/completed/failed),
-            // sehingga pesan berikutnya tidak pernah diproses.
-            const existingJob = await this.aiChatQueue.getJob(jobId);
-            if (existingJob) {
-                const state = await existingJob.getState();
-                if (state === "active") {
-                    // Job sedang jalan — jadwalkan follow-up agar buffer baru tetap diproses
-                    await this.aiChatQueue.add(name, data, {
-                        jobId: `${jobId}:${Date.now()}`,
-                        delay: debounceMs,
-                        attempts: 5,
-                        backoff: { type: "fixed", delay: 2000 },
-                        removeOnComplete: true,
-                        removeOnFail: true,
-                    });
-                    this.loggerService.log(
-                        `Job aktif untuk ${data.phone_number}, follow-up dijadwalkan (delay ${debounceMs}ms)`,
-                        `QueueService/addQueue`
-                    );
-                    return;
+            // 2. Token debounce: setiap pesan baru "memenangkan" gelombang
+            const token = `${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+            await this.redis.set(debounceKey, token, "EX", tokenTtlSec);
+
+            // 3. Selalu jadwalkan job dengan jobId UNIK (hindari konflik BullMQ)
+            await this.aiChatQueue.add(
+                name,
+                { ...data, debounceToken: token },
+                {
+                    jobId: `chat:${phone}:${token}`,
+                    delay: debounceMs,
+                    attempts: 5,
+                    backoff: { type: "fixed", delay: 2000 },
+                    removeOnComplete: true,
+                    removeOnFail: true,
                 }
-
-                try {
-                    await existingJob.remove();
-                } catch {
-                    // Race: job mungkin baru selesai / dihapus worker lain
-                }
-            }
-
-            // 3. Jadwalkan job baru dengan delay debounce window (default 2 detik)
-            await this.aiChatQueue.add(name, data, {
-                jobId,
-                delay: debounceMs,
-                attempts: 5,
-                backoff: { type: "fixed", delay: 2000 },
-                removeOnComplete: true,
-                removeOnFail: true,
-            });
+            );
 
             this.loggerService.log(
-                `Job ai-chat dijadwalkan untuk ${data.phone_number} (delay ${debounceMs}ms)`,
+                `Job ai-chat dijadwalkan untuk ${phone} (delay ${debounceMs}ms, token=${token})`,
                 `QueueService/addQueue`
             );
         } catch (err) {
-            this.loggerService.error(`Error adding job to ai-chat queue: ${err}`, `QueueService/addQueue`);
+            this.loggerService.error(
+                `Error adding job to ai-chat queue: ${err}`,
+                `QueueService/addQueue`
+            );
         }
     }
 
@@ -91,7 +80,7 @@ export class QueueService {
         });
     }
 
-    async addGenerateBanks(name : "generate-question" | "generate-request" , data : GenerateBank) {
+    async addGenerateBanks(name: "generate-question" | "generate-request", data: GenerateBank) {
         await this.generateQuestionRequestQueue.add(name, data).catch((err) => {
             this.loggerService.error(`Error adding job to generate-question-request queue: ${err}`, `QueueService/addGenerateBanks`);
         });
