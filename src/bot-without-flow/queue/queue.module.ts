@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { QueueService } from './queue.service';
+import Redis from 'ioredis';
 
 @Module({
     imports: [
@@ -23,8 +24,8 @@ import { QueueService } from './queue.service';
             })
         })
     ],
-    providers: [QueueService],
-    exports: [QueueService]
+    providers: [QueueService, Redis],
+    exports: [QueueService, BullModule]
 })
 export class QueueModule {
 }
