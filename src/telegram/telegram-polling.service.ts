@@ -158,7 +158,10 @@ export class TelegramPollingService implements OnModuleInit, OnModuleDestroy {
 
         if (!payload.message) return;
 
-        this.logger.debug(`[Polling] Pesan masuk dari Telegram user ${chatId}: ${payload.message.slice(0, 100)}`, TelegramPollingService.name);
+        this.logger.log(
+            `[Polling] Pesan masuk dari Telegram user ${chatId}: ${payload.message.slice(0, 100)}`,
+            TelegramPollingService.name
+        );
         await this.queueService.addQueue("ai-chat", payload);
     }
 

@@ -21,6 +21,7 @@ export class QueueService {
         if (!data.phone_number) return;
 
         const bufferKey = `chat-buffer:${data.phone_number}`;
+        const jobId = `debounce:${data.phone_number}`;
         const debounceMs = parseInt(process.env.CHAT_DEBOUNCE_MS || "2000", 10);
 
         try {
@@ -28,16 +29,50 @@ export class QueueService {
             await this.redis.rpush(bufferKey, JSON.stringify(data));
             await this.redis.expire(bufferKey, 60);
 
-            // 2. Jadwalkan job dengan delay debounce window (default 2 detik).
-            // jobId deterministik per nomor HP mencegah pembuatan multi-job saat user mengetik beruntun.
+            // 2. Bersihkan job lama dengan jobId yang sama.
+            // BullMQ menolak add() jika jobId masih ada (delayed/completed/failed),
+            // sehingga pesan berikutnya tidak pernah diproses.
+            const existingJob = await this.aiChatQueue.getJob(jobId);
+            if (existingJob) {
+                const state = await existingJob.getState();
+                if (state === "active") {
+                    // Job sedang jalan — jadwalkan follow-up agar buffer baru tetap diproses
+                    await this.aiChatQueue.add(name, data, {
+                        jobId: `${jobId}:${Date.now()}`,
+                        delay: debounceMs,
+                        attempts: 5,
+                        backoff: { type: "fixed", delay: 2000 },
+                        removeOnComplete: true,
+                        removeOnFail: true,
+                    });
+                    this.loggerService.log(
+                        `Job aktif untuk ${data.phone_number}, follow-up dijadwalkan (delay ${debounceMs}ms)`,
+                        `QueueService/addQueue`
+                    );
+                    return;
+                }
+
+                try {
+                    await existingJob.remove();
+                } catch {
+                    // Race: job mungkin baru selesai / dihapus worker lain
+                }
+            }
+
+            // 3. Jadwalkan job baru dengan delay debounce window (default 2 detik)
             await this.aiChatQueue.add(name, data, {
-                jobId: `debounce:${data.phone_number}`,
+                jobId,
                 delay: debounceMs,
                 attempts: 5,
-                backoff: { type: 'fixed', delay: 2000 },
-                removeOnComplete: 1000,
-                removeOnFail: 1000
+                backoff: { type: "fixed", delay: 2000 },
+                removeOnComplete: true,
+                removeOnFail: true,
             });
+
+            this.loggerService.log(
+                `Job ai-chat dijadwalkan untuk ${data.phone_number} (delay ${debounceMs}ms)`,
+                `QueueService/addQueue`
+            );
         } catch (err) {
             this.loggerService.error(`Error adding job to ai-chat queue: ${err}`, `QueueService/addQueue`);
         }

@@ -5,9 +5,9 @@ import { SendFileDTO, SendLocationDTO } from 'src/whatsapp/types/wa-gate-way.dto
 
 /**
  * Facade pengirim pesan. Platform aktif ditentukan sekali saat startup dari
- * env BOT_PLATFORM: "telegram" -> Telegram Bot API, selain itu -> WA Gateway
- * (perilaku lama). Signature method identik dengan WhatsappService agar
- * callsite cukup mengganti nama service.
+ * env BOT_PLATFORM: "telegram" | "telegram-polling" -> Telegram Bot API,
+ * selain itu -> WA Gateway (perilaku lama). Signature method identik dengan
+ * WhatsappService agar callsite cukup mengganti nama service.
  */
 @Injectable()
 export class ChannelService {
@@ -18,7 +18,8 @@ export class ChannelService {
         private readonly telegramService: TelegramService,
         private readonly whatsappService: WhatsappService
     ) {
-        this.platform = process.env.BOT_PLATFORM === "telegram" ? "telegram" : "wagateway";
+        const platformEnv = (process.env.BOT_PLATFORM || "").toLowerCase();
+        this.platform = (platformEnv === "telegram" || platformEnv === "telegram-polling") ? "telegram" : "wagateway";
     }
 
     isTelegram(): boolean {

@@ -41,7 +41,7 @@ export class ProcessChatProcessor extends WorkerHost {
         }
 
         try {
-            await this.loggerService.log(`Memulai proses chat untuk nomor ${phoneNumber}`);
+            this.loggerService.log(`Memulai proses chat untuk nomor ${phoneNumber}`, ProcessChatProcessor.name);
 
             // 2. Ambil dan agregasikan seluruh pesan dalam buffer debounce
             const bufferKey = `chat-buffer:${phoneNumber}`;
@@ -53,10 +53,18 @@ export class ProcessChatProcessor extends WorkerHost {
             switch (job.name) {
                 case "ai-chat":
                     await this.botService.sendChatService(mergedPayload);
+                    this.loggerService.log(`Selesai proses chat untuk nomor ${phoneNumber}`, ProcessChatProcessor.name);
                     break;
                 default:
                     this.loggerService.warn(`No handler for job: ${job.name}`, ProcessChatProcessor.name);
             }
+        } catch (error: any) {
+            this.loggerService.error(
+                `Gagal proses chat untuk ${phoneNumber}: ${error?.message || error}`,
+                error?.stack,
+                ProcessChatProcessor.name
+            );
+            throw error;
         } finally {
             // Lepaskan lock setelah proses selesai
             await this.redis.del(lockKey);
