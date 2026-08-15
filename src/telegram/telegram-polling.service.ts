@@ -62,7 +62,7 @@ export class TelegramPollingService implements OnModuleInit, OnModuleDestroy {
 
     private async deleteWebhookSafe(): Promise<void> {
         try {
-            await this.bot.post("/deleteWebhook", { drop_pending_updates: false });
+            await this.bot.post("/deleteWebhook", { drop_pending_updates: true });
             this.logger.log("Webhook Telegram berhasil di-clear untuk mode Polling.", TelegramPollingService.name);
         } catch (error: any) {
             this.logger.warn(`Gagal menghapus webhook Telegram: ${error?.message || error}`, TelegramPollingService.name);
@@ -92,10 +92,14 @@ export class TelegramPollingService implements OnModuleInit, OnModuleDestroy {
                 const response = await this.bot.get<{ ok: boolean; result: TelegramUpdate[] }>("/getUpdates", {
                     params: {
                         offset: this.offset,
-                        timeout: 25, // Long polling timeout dalam detik
-                        allowed_updates: ["message", "edited_message"]
+                        timeout: 25,
                     }
                 });
+
+                const count = response.data?.result?.length || 0;
+                if (count > 0) {
+                    this.logger.log(`[Polling] Menerima ${count} update dari Telegram (offset=${this.offset})`, TelegramPollingService.name);
+                }
 
                 if (response.data && response.data.ok && Array.isArray(response.data.result)) {
                     for (const update of response.data.result) {
