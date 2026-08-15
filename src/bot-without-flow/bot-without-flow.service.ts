@@ -790,6 +790,18 @@ export class BotWithoutFlowService {
                     break;
 
                 case "image":
+                    // Bila file tidak ada / kirim media gagal → caption/teks jawaban saja (tanpa pesan error)
+                    if (!finalMessage.file_path?.url) {
+                        this.loggerService.error("Jawaban image tanpa file_url, kirim caption saja", "sendFinalMessage");
+                        if (finalMessage.message) {
+                            await this.channelService.sendText(
+                                payload.phone_number,
+                                finalMessage.message,
+                                process.env.WA_BOT_GATEWAY_SESSION || "wabot"
+                            );
+                        }
+                        break;
+                    }
                     try {
                         await this.channelService.sendImage({
                             phone_number: payload.phone_number,
@@ -797,8 +809,14 @@ export class BotWithoutFlowService {
                             description: finalMessage.message
                         }, process.env.WA_BOT_GATEWAY_SESSION || "wabot");
                     } catch (imgErr) {
-                        this.loggerService.error("Gagal kirim gambar, fallback ke teks", imgErr);
-                        await this.channelService.sendText(payload.phone_number, finalMessage.message || "Maaf, gagal mengirim gambar.", process.env.WA_BOT_GATEWAY_SESSION || "wabot");
+                        this.loggerService.error("Gagal kirim gambar, kirim caption saja", imgErr);
+                        if (finalMessage.message) {
+                            await this.channelService.sendText(
+                                payload.phone_number,
+                                finalMessage.message,
+                                process.env.WA_BOT_GATEWAY_SESSION || "wabot"
+                            );
+                        }
                     }
                     break;
 
@@ -824,8 +842,14 @@ export class BotWithoutFlowService {
                             description: finalMessage.message
                         }, process.env.WA_BOT_GATEWAY_SESSION || "wabot");
                     } catch (fileErr) {
-                        this.loggerService.error("Gagal kirim file, fallback ke teks", fileErr);
-                        await this.channelService.sendText(payload.phone_number, finalMessage.message || "Maaf, gagal mengirim file.", process.env.WA_BOT_GATEWAY_SESSION || "wabot");
+                        this.loggerService.error("Gagal kirim file, kirim caption saja", fileErr);
+                        if (finalMessage.message) {
+                            await this.channelService.sendText(
+                                payload.phone_number,
+                                finalMessage.message,
+                                process.env.WA_BOT_GATEWAY_SESSION || "wabot"
+                            );
+                        }
                     }
             }
 
