@@ -62,11 +62,15 @@ export class BotWithoutFlowService {
         return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
-    async simulateTyping(text: string): Promise<void> {
-        const avgTypingSpeed = 50; // ms per karakter
-        const randomFactor = Math.random() * 0.4 + 0.8; // variasi kecepatan 0.8x - 1.2x
-        const typingTime = Math.min(text.length * avgTypingSpeed * randomFactor, 5000); // max 5 detik
-        await this.sleep(typingTime);
+    /**
+     * Simulasi ketik opsional. Default 0ms (langsung kirim) agar bot terasa responsif.
+     * Set CHAT_TYPING_SIMULATION_MS di env bila ingin jeda artifisial (maks 2000ms).
+     */
+    async simulateTyping(_text: string): Promise<void> {
+        const typingMs = parseInt(process.env.CHAT_TYPING_SIMULATION_MS || "0", 10);
+        if (typingMs > 0) {
+            await this.sleep(Math.min(typingMs, 2000));
+        }
     }
 
     // ========================================================================
@@ -267,6 +271,12 @@ export class BotWithoutFlowService {
         try {
             const year = new Date().getFullYear();
             const variabels = await this.getVariables();
+
+            // Typing segera saat turn mulai (sebelum LLM) agar user tidak merasa bot diam
+            void this.channelService.startTyping(
+                payload.phone_number,
+                process.env.WA_BOT_GATEWAY_SESSION || "wabot"
+            ).catch(() => undefined);
 
             // --------------------------------------------------------------------
             // 1. Contact check
@@ -770,8 +780,8 @@ export class BotWithoutFlowService {
             }
 
             await this.channelService.sendSeen(payload.phone_number, process.env.WA_BOT_GATEWAY_SESSION || "wabot");
+            // Typing indicator (ringan); jeda artifisial dinonaktifkan default (lihat simulateTyping)
             await this.channelService.startTyping(payload.phone_number, process.env.WA_BOT_GATEWAY_SESSION || "wabot");
-
             await this.simulateTyping(finalMessage.message);
 
             switch (finalMessage.message_type) {

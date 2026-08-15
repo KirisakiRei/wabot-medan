@@ -25,21 +25,20 @@ export class QueueService {
         const phone = data.phone_number;
 
         try {
+            // Tanpa delay buatan — job langsung waiting agar worker memproses secepat mungkin
             await this.aiChatQueue.add(
                 name,
                 data,
                 {
-                    // attempts hanya untuk kegagalan teknis (LLM/DB), bukan untuk mutex requeue
-                    attempts: 3,
-                    backoff: { type: "fixed", delay: 2000 },
+                    attempts: 5,
+                    backoff: { type: "fixed", delay: 500 },
                     removeOnComplete: true,
-                    // Simpan sedikit history fail untuk debugging; jangan true murni
                     removeOnFail: 200,
                 }
             );
 
             this.loggerService.log(
-                `Job ${name} didaftarkan untuk ${phone}: "${(data.message || "").slice(0, 80)}"`,
+                `Job ${name} masuk antrian segera untuk ${phone}: "${(data.message || "").slice(0, 80)}"`,
                 `QueueService/addQueue`
             );
         } catch (err) {

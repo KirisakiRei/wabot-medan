@@ -25,34 +25,45 @@ export class ProcessChatProcessor extends WorkerHost {
         }
 
         const lockKey = `lock:user:${phoneNumber}`;
-        const lockTtlSec = 90;
-        const requeueMs = 2000;
+        const lockTtlSec = 120;
+        // Requeue cepat agar pesan berikutnya langsung diproses setelah turn aktif selesai
+        const requeueMs = 400;
+        const workerToken = token || (job as Job & { token?: string }).token;
 
-        // Per-user mutex: satu turn aktif per nomor agar konteks & balasan berurutan.
-        // Bila lock sibuk, job di-delay ulang TANPA mengonsumsi attempts (DelayedError).
+        // Satu turn aktif per user (hindari race konteks). Pesan lain di-requeue tanpa
+        // mengonsumsi attempts (DelayedError), bukan di-delay 2s debounce buatan.
         const acquired = await this.redis.set(lockKey, "locked", "EX", lockTtlSec, "NX");
 
         if (!acquired) {
             this.loggerService.log(
-                `User ${phoneNumber} sedang aktif pada turn lain. Menunda eksekusi pesan...`,
+                `User ${phoneNumber} sedang aktif. Requeue pesan dalam ${requeueMs}ms (tanpa consume attempt)`,
                 ProcessChatProcessor.name
             );
-            if (token) {
-                await job.moveToDelayed(Date.now() + requeueMs, token);
-                throw new DelayedError();
+            if (workerToken) {
+                try {
+                    await job.moveToDelayed(Date.now() + requeueMs, workerToken);
+                    throw new DelayedError();
+                } catch (err: any) {
+                    if (err?.name === "DelayedError" || err instanceof DelayedError) {
+                        throw err;
+                    }
+                    // Fallback: retry via attempts (lock BullMQ hilang / token mismatch)
+                    this.loggerService.warn(
+                        `moveToDelayed gagal untuk ${phoneNumber}: ${err?.message || err}. Fallback retry.`,
+                        ProcessChatProcessor.name
+                    );
+                }
             }
-            // Fallback bila token worker tidak tersedia (seharusnya jarang)
             throw new Error(`Lock untuk ${phoneNumber} sedang sibuk, retry...`);
         }
 
-        // Heartbeat: perpanjang TTL lock selama turn masih berjalan (LLM/typing bisa lama)
         const heartbeat = setInterval(() => {
             this.redis.expire(lockKey, lockTtlSec).catch(() => undefined);
-        }, 30_000);
+        }, 25_000);
 
         try {
             this.loggerService.log(
-                `Memulai proses chat untuk nomor ${phoneNumber}: "${(payload.message || "").slice(0, 80)}"`,
+                `Memulai proses chat untuk ${phoneNumber}: "${(payload.message || "").slice(0, 80)}"`,
                 ProcessChatProcessor.name
             );
 
@@ -60,7 +71,7 @@ export class ProcessChatProcessor extends WorkerHost {
                 case "ai-chat":
                     await this.botService.sendChatService(payload);
                     this.loggerService.log(
-                        `Selesai proses chat untuk nomor ${phoneNumber}`,
+                        `Selesai proses chat untuk ${phoneNumber}`,
                         ProcessChatProcessor.name
                     );
                     break;
