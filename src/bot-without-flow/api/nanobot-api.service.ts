@@ -427,6 +427,10 @@ export class NanobotApiService {
 
     // ========================================================================
     // LOG TURN - Catat percakapan dari Nanobot ke chat_logs
+    // Dipakai hanya bila Nanobot dipanggil langsung (terminal/client eksternal).
+    // Jalur NestJS set persist_log=false di request turn, sehingga method ini
+    // tidak dipanggil dan chat_logs disimpan lewat persistChatLog (dengan
+    // enrichment not_found + generate banks).
     // ========================================================================
     async logTurn({
         channel_user_id,

@@ -4,7 +4,6 @@ import { Queue } from 'bullmq';
 import { BotWebhookPayload } from 'src/bot-webhook/bot-webhook.dto';
 import { GenerateBank, QuestionRagPayload, RequestRagPayload } from '../types/validation.types';
 import { LoggerService } from 'src/logger/logger.service';
-import Redis from 'ioredis';
 
 @Injectable()
 export class QueueService {
@@ -14,54 +13,38 @@ export class QueueService {
         @InjectQueue('generate-rag') private generateRagQueue: Queue,
         @InjectQueue('generate-question-request') private generateQuestionRequestQueue: Queue,
         private readonly loggerService: LoggerService,
-        private readonly redis: Redis
     ) {}
 
     /**
-     * Debounce per nomor: buffer pesan di Redis, jadwalkan 1 job delayed.
-     * Token debounce di Redis memastikan hanya "gelombang" terakhir yang dieksekusi,
-     * tanpa jobId BullMQ tetap (yang sering stuck setelah complete/fail).
+     * Mendaftarkan pesan chat masuk ke antrean BullMQ untuk diproses secara interaktif per turn.
+     * Tidak menggunakan buffer/coalescing buatan agar setiap pesan pengguna dibalas langsung.
      */
     async addQueue(name: string, data: BotWebhookPayload) {
         if (!data.phone_number) return;
 
         const phone = data.phone_number;
-        const bufferKey = `chat-buffer:${phone}`;
-        const debounceKey = `chat-debounce:${phone}`;
-        const debounceMs = parseInt(process.env.CHAT_DEBOUNCE_MS || "2000", 10);
-        // TTL token sedikit lebih panjang dari delay agar race kecil tetap aman
-        const tokenTtlSec = Math.max(10, Math.ceil(debounceMs / 1000) + 8);
 
         try {
-            // 1. Buffer pesan
-            await this.redis.rpush(bufferKey, JSON.stringify(data));
-            await this.redis.expire(bufferKey, 120);
-
-            // 2. Token debounce: setiap pesan baru "memenangkan" gelombang
-            const token = `${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
-            await this.redis.set(debounceKey, token, "EX", tokenTtlSec);
-
-            // 3. Selalu jadwalkan job dengan jobId UNIK (hindari konflik BullMQ)
             await this.aiChatQueue.add(
                 name,
-                { ...data, debounceToken: token },
+                data,
                 {
-                    jobId: `chat:${phone}:${token}`,
-                    delay: debounceMs,
-                    attempts: 5,
+                    // attempts hanya untuk kegagalan teknis (LLM/DB), bukan untuk mutex requeue
+                    attempts: 3,
                     backoff: { type: "fixed", delay: 2000 },
                     removeOnComplete: true,
-                    removeOnFail: true,
+                    // Simpan sedikit history fail untuk debugging; jangan true murni
+                    removeOnFail: 200,
                 }
             );
 
             this.loggerService.log(
-                `Job ai-chat dijadwalkan untuk ${phone} (delay ${debounceMs}ms, token=${token})`,
+                `Job ${name} didaftarkan untuk ${phone}: "${(data.message || "").slice(0, 80)}"`,
                 `QueueService/addQueue`
             );
         } catch (err) {
             this.loggerService.error(
-                `Error adding job to ai-chat queue: ${err}`,
+                `Error adding job to ${name} queue: ${err}`,
                 `QueueService/addQueue`
             );
         }
@@ -86,3 +69,4 @@ export class QueueService {
         });
     }
 }
+

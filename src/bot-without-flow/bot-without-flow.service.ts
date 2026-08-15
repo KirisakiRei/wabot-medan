@@ -306,7 +306,9 @@ export class BotWithoutFlowService {
                 sender_name: payload.author || "",
                 message_time: payload.time || "",
                 session_key: `wa:${payload.phone_number}`,
-                context
+                context,
+                // Backend menyimpan chat_logs via persistChatLog (+ not_found enrichment)
+                persist_log: false
             };
 
             const response = await this.nanobotClientService.turn(request);
@@ -800,8 +802,8 @@ export class BotWithoutFlowService {
                         }, process.env.WA_BOT_GATEWAY_SESSION || "wabot");
                     } catch (locErr) {
                         this.loggerService.error("Gagal kirim lokasi, fallback ke teks", locErr);
+                        await this.channelService.sendText(payload.phone_number, finalMessage.message || "Silakan lihat lokasi di atas.", process.env.WA_BOT_GATEWAY_SESSION || "wabot");
                     }
-                    await this.channelService.sendText(payload.phone_number, finalMessage.message || "Silakan lihat lokasi di atas.", process.env.WA_BOT_GATEWAY_SESSION || "wabot");
                     break;
 
                 default:

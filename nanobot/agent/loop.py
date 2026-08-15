@@ -146,14 +146,17 @@ class AgentLoop:
         self.session_store.append_history(session_key, "assistant", message)
         self.session_store.save(session_key)
 
-        # Log turn ke backend (best effort, tidak mengganggu alur utama)
-        await self.pemko_client.log_turn(
-            channel_user_id=request.channel_user_id,
-            user_message=request.text,
-            bot_reply=message,
-            route=result.route,
-            tool_calls=tool_calls,
-        )
+        # Log turn ke backend hanya bila caller belum menyimpan sendiri.
+        # Pipeline NestJS (sendChatServiceNanobot) set persist_log=False agar
+        # tidak terjadi double insert ke chat_logs.
+        if request.persist_log is not False:
+            await self.pemko_client.log_turn(
+                channel_user_id=request.channel_user_id,
+                user_message=request.text,
+                bot_reply=message,
+                route=result.route,
+                tool_calls=tool_calls,
+            )
 
         logger.info(
             "Turn selesai session_key=%s route=%s tools=%s",

@@ -47,6 +47,8 @@ export type NanobotTurnRequest = {
     message_time: string;
     session_key: string;
     context: NanobotTurnContext;
+    /** False = backend NestJS menyimpan chat_logs sendiri (hindari double insert). */
+    persist_log?: boolean;
 };
 
 export type NanobotReply = {

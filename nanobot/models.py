@@ -35,6 +35,9 @@ class NanobotTurnRequest(BaseModel):
     message_time: str = ""
     session_key: str
     context: Optional[NanobotTurnContext] = None
+    # False bila pipeline backend NestJS sudah menyimpan chat_logs sendiri
+    # (persistChatLog + not_found enrichment). Default True untuk client terminal/langsung.
+    persist_log: bool = True
 
 
 class NanobotReply(BaseModel):
