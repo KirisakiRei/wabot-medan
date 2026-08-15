@@ -13,7 +13,6 @@ import { WhatsappService } from 'src/whatsapp/whatsapp.service';
 import { SessionModule } from './session/session.module';
 import { AiModule } from './ai/ai.module';
 import { QueueModule } from './queue/queue.module';
-import Redis from 'ioredis';
 import { ProcessChatProcessor } from './processor/process-chat.processor';
 import { GenerateRagProcessor } from './processor/generate-rag.processor';
 import { GenerateBanksProcessor } from './processor/generate-banks.processor';
@@ -31,7 +30,8 @@ import { TelegramModule } from 'src/telegram/telegram.module';
 @Module({
   controllers: [BotWithoutFlowController, IntegrationApiController, InformationApiController, ProposalApiController, ComplaintsApiController, ConversationsApiController],
   imports: [PengaduanModule, SistemInformasiModule, UsulanModule, CacheModule.register(), WhatsappModule, SessionModule, AiModule, QueueModule, NanobotModule, TelegramModule],
-  providers: [BotWithoutFlowService, SistemInformasiService, PengaduanService, UsulanService, WhatsappService, Redis, ProcessChatProcessor, GenerateRagProcessor, GenerateBanksProcessor, NanobotAuthGuard, NanobotApiService, ChannelService],
+  // Redis di-export dari QueueModule (satu instance, host/port dari env)
+  providers: [BotWithoutFlowService, SistemInformasiService, PengaduanService, UsulanService, WhatsappService, ProcessChatProcessor, GenerateRagProcessor, GenerateBanksProcessor, NanobotAuthGuard, NanobotApiService, ChannelService],
   exports: [BotWithoutFlowService, ProcessChatProcessor, GenerateRagProcessor, GenerateBanksProcessor]
 })
 export class BotWithoutFlowModule { }

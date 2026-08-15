@@ -19,22 +19,24 @@ import { TelegramModule } from './telegram/telegram.module';
   imports: [
     PrismaModule, 
     BotWebhookModule,
+    // Config dulu agar REDIS_* terbaca sebelum BullMQ connect
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     BullModule.forRoot({
-      connection : {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: 6379,
-      }
+      connection: {
+        host: process.env.REDIS_HOST || "localhost",
+        port: parseInt(process.env.REDIS_PORT || "6379", 10),
+        maxRetriesPerRequest: null,
+      },
     }),
     ThrottlerModule.forRoot({
-      throttlers : [
+      throttlers: [
         {
-          ttl : 60000,
-          limit : 10,
-        }
-      ]
-    }),
-    ConfigModule.forRoot({
-      isGlobal : true
+          ttl: 60000,
+          limit: 10,
+        },
+      ],
     }),
     ZonaParkirPrismaModule,
     BotWithoutFlowModule,
